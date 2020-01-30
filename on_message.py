@@ -31,18 +31,21 @@ def set_on_message(bot):
                         if ratio > maximum:
                             key = pred
                             maximum = ratio
-                    if key == 'ชื่อ' and maximum > 0.6:
+
+                    if key == 'ชื่อ':
                         key = 'Name'
-                    elif key == 'อายุ' and maximum > 0.6:
+                    elif key == 'อายุ':
                         key = 'Age'
-                    elif key == 'IGN(ชื่อในเกม)' and maximum > 0.6:
+                    elif key == 'IGN(ชื่อในเกม)':
                         key = 'Ign'
 
                     value = string.strip().replace(temp,'').strip()
 
                     if value == "" and key != "Clan" and key != "Age":
                         break
-                    profile[key] = value
+
+                    if maximum > 0.6:
+                        profile[key] = value
 
                 if ['Age', 'Clan', 'Ign', 'Name'] == sorted(list(profile.keys())):
                     introCheck = True
@@ -52,6 +55,7 @@ def set_on_message(bot):
                     waitingIntro = discord.utils.get(message.guild.roles, id=int(bot.data['waitingIntro']))
                     await message.author.add_roles(checkedIntro)
                     await message.author.remove_roles(waitingIntro)
+                    await message.add_reaction("✅")
                     embed = discord.Embed(title="Welcome " + message.author.name, description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
                     embed.add_field(name= "!sentient", value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "!arbitration {mode}", value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
@@ -59,7 +63,6 @@ def set_on_message(bot):
                     embed.add_field(name= "!info {item name}", value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
                     embed.set_footer(text='Uncle Cat (ลุงแมว) Discord', icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
-                    await message.add_reaction("✅")
                     maximum = 0
                     for pred in bot.data['ally']:
                         ratio = SequenceMatcher(None,pred,profile['Clan']).ratio()
@@ -71,10 +74,15 @@ def set_on_message(bot):
                     return
                 else:
                     await message.add_reaction("❌")
-                    await message.author.send("""แนะนำตัวใหม่ให้ถูกตามรูปแบบที่กำหนดนะครับ ถ้าไม่ต้องการใส่อายุ หรือ Clan สามารถใส่เป็น - ได้""" + '\nรูปแบบการแนะนำตัว\n' + """```ชื่อ : เราบอท
-อายุ : 2035
-IGN(ชื่อในเกม) : MisterBot
-CLAN : -```""")
+                    embed = discord.Embed(title="Hello " + message.author.name, description = 'แนะนำตัวใหม่ในห้อง welcome_room ตามรูปแบบที่กำหนดนะครับ', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+                    embed.add_field(name='ถ้าไม่ต้องการใส่อายุ หรือ Clan สามารถใส่เป็น - ได้', value="""ชื่อ :
+อายุ :
+IGN(ชื่อในเกม) :
+CLAN :""", inline=False)
+                    embed.set_image(url='https://cdn.discordapp.com/attachments/468032916270743564/672090545555898388/Capture.JPG')
+                    embed.set_footer(text='ปล. ในDiscord[PC] สามารถขึ้นบรรทัดใหม่ด้วยการกดปุ่ม Shift ค้าง + ปุ่ม Enter(จำเป็นต้องขึ้นบรรทัดใหม่)', icon_url=bot.data['icon']) 
+                    await message.author.send(embed=embed)                    
+
                     return
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    

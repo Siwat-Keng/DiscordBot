@@ -55,7 +55,7 @@ class SentientAnomaly():
         client.subscribe(self.sentientOutPoseLastArrive)
         client.subscribe(self.sentientOutPosePeriod)
         client.connect()
-
+        
     def update(self, data):
         currentTime = datetime.now().replace(microsecond=0) + timedelta(hours=7)
 
@@ -203,6 +203,7 @@ class News():
         self.needEdit = False
         return {'title':"[PC] Latest Warframe News", 'description':self.name+' ['+self.eta+']', 'url':self.url, 'color':0x00ff00}
     
+
 class WorldStat():
 
     def __init__(self):
@@ -210,8 +211,8 @@ class WorldStat():
         self.sentientOutposts = SentientAnomaly()
         self.timeCycle = TimeCycle() 
         self.arbitration = Arbitration()
-        self.news = News()
-
+        self.news = News()    
+        
     def update(self):
         try:
             temp = json.loads(str(BeautifulSoup(urlopen(Request('https://api.warframestat.us/pc', 
@@ -231,4 +232,4 @@ class WorldStat():
 
             return True
         except:
-            return False
+            return False  

@@ -51,54 +51,20 @@ class MarketItem():
     def getSellMessage(self):
         return "/w "+self.user+" Hi! I want to buy: "+self.name+" for "+str(self.price)+" platinum. (warframe.market)"
 
-class Item():
-
-    def __init__(self, name, description, wikiaUrl, image=None, drops=None):
-        self.name = name
-        self.description = description
-        self.wikiaUrl = wikiaUrl
-        if image == None:
-            self.image = image
-        else:
-            self.image = 'https://cdn.warframestat.us/img/'+image
-        self.drops = drops
-
-class Weapon(Item):
-
-    def __init__(self, weaponDict):
-        super().__init__(weaponDict['name'], weaponDict['description'], weaponDict['wikiaUrl'], image = weaponDict['imageName'])
-        # self.
-
-
-
 class ItemInfo():
 
     def __init__(self):
-        self.weapons = set()
-        self.items = {}
+        self.collector = []
         self.url = {}
         self.name = {}
 
     def update(self):
         try:
-            self.items = json.loads(str(BeautifulSoup(urlopen(Request('http://api.warframe.market/v1/items' ,
+            self.collector = json.loads(str(BeautifulSoup(urlopen(Request('http://api.warframe.market/v1/items' ,
             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 'html.parser')))['payload']['items']
-            for item in self.items:
+            for item in self.collector:
                 self.name[item['url_name']] = item['item_name']
                 self.url[item['item_name']] = item['url_name']
-
-            target = str(BeautifulSoup(urlopen(Request('https://www.warframe.com/repos/weeklyRivensPC.json', 
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})), 
-            'html.parser'))
-            target =json.loads(target[:target.rfind(']')+1])
-            temp = set()
-            for weapon in target:
-                try:
-                    temp.add(weapon['compatibility'].lower().replace('<archwing>','').strip())
-                except:
-                    pass
-            self.weapons = temp
-
             return True
         except:
             return False        
@@ -114,41 +80,22 @@ class ItemInfo():
         return self.url[itemName]
 
     def toName(self, url):
-        itemMax = 0
-        weaponMax = 0
+        maximum = 0
         itemUrl = ''
-        weapon = ''
         for item in self.name:
             ratio = SequenceMatcher(None,url.lower(),item).ratio()
-            if ratio > itemMax:
-                itemMax = ratio
-                itemUrl = item 
-        for item in self.weapons:
-            ratio = SequenceMatcher(None,url.lower(),item).ratio()
-            if ratio > weaponMax:
-                weaponMax = ratio
-                weapon = item
-        if weaponMax > itemMax:
-            return weapon       
+            if ratio > maximum:
+                maximum = ratio
+                itemUrl = item        
         return self.name[itemUrl]
 
     def getInfo(self, name):
-        s = str(BeautifulSoup(urlopen(Request('https://api.warframestat.us/items/search/' + name.lower().replace('(veiled)','').replace('set','').strip().replace(' ','%20'), 
+        info = json.loads(str(BeautifulSoup(urlopen(Request('https://api.warframe.market/v1/items/' + self.url[name], 
         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 
-        'html.parser'))
-        info = json.loads(s[:s.rfind(']')+1])
-        try:
-            return info[0]
-        except IndexError:
-            info = json.loads(str(BeautifulSoup(urlopen(Request('https://api.warframe.market/v1/items/' + self.url[name], 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 
-            'html.parser')))['payload']['item']['items_in_set']
-            for item in info:
-                if item['en']['item_name'] == name:
-                    temp = item['en']
-            info = {'name':temp['item_name'], 'description':temp['description'], 'wikiaUrl':temp['wiki_link'], 'drop':temp['drops']}
-            return info
-
+        'html.parser')))['payload']['item']['items_in_set']
+        for item in info:
+            if item['en']['item_name'] == name:
+                return item['en']
 
     def getPrice(self, name):
         output = {}
@@ -187,13 +134,4 @@ class ItemInfo():
         for items in output['sell']:
             items.sort()          
 
-        return output
-
-a = ItemInfo()
-a.update()
-data = a.getInfo(a.toName("kogake prime"))
-for i in data:
-    print(i)
-print(data['imageName'])
-print(data['name'])
-# print(a.getInfo(a.toName("pennant"))['components'])
+        return output      

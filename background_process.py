@@ -15,7 +15,7 @@ def set_background_process(bot):
         if bot.data['world_data'].arbitration.needMention:
             try:
                 await bot.data['message']['arbyMention'].delete()
-            except (discord.NotFound, KeyError, UnboundLocalError):
+            except (UnboundLocalError, discord.NotFound):
                 pass
             bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send(bot.data['arbitration'][bot.data['world_data'].arbitration.getMention()])
 
@@ -26,7 +26,7 @@ def set_background_process(bot):
         if bot.data["world_data"].sentientOutposts.currentMission == None:
             try:
                 await bot.data["mentioned_sentient"].delete()
-            except KeyError:
+            except (KeyError, discord.NotFound):
                 pass
     
         try:
@@ -47,9 +47,9 @@ def set_background_process(bot):
                 await message.delete()
                 
             bot.data['message']['updateMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
-            bot.data['message']['embedMessage'] = await bot.data['channel']['alert'].send('```Loading...```')   
+            bot.data['message']['embedMessage'] = await bot.data['channel']['alert'].send('```Loading...```') 
 
-            bot.data["world_data"].news.needEdit = True             
+            bot.data["world_data"].news.needEdit = True               
 
         except:
             print("Unexpected error:", sys.exc_info())
@@ -74,6 +74,7 @@ def set_background_process(bot):
         bot.data['message']['updateMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
         bot.data['message']['embedMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
         bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send('```Loading...```')        
+
 
     @tasks.loop(seconds=60.0)
     async def memberCycle():
@@ -100,13 +101,13 @@ def set_background_process(bot):
 
     @memberCycle.before_loop
     async def before_memberCycle():
-        await bot.client.wait_until_ready()                   
+        await bot.client.wait_until_ready()
 
-    @tasks.loop(seconds=1.0)
+    @tasks.loop(seconds=3.0)
     async def updateData():
         bot.data['world_data'].update()
         bot.data['itemCollector'].update()
-
+        
     @updateData.before_loop
     async def before_updateData():
         await bot.client.wait_until_ready()
@@ -128,6 +129,7 @@ def set_background_process(bot):
                 value = m.replace(key,'')
                 if key == 'Clan :':
                     temp.add(value.strip())
+        del bot.data['ally']
         bot.data['ally'] = temp
 
     @updateAlliance.before_loop

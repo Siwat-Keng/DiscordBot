@@ -11,14 +11,14 @@ def set_on_member_join(bot):
                 await member.kick()
                 return
             
-            
-            await member.send("ยินดีต้อนรับ! อย่าลืมไปแนะนำตัวในห้อง welcome_room ภายใน 30 นาทีด้วยหล่ะ"+ '\nรูปแบบการแนะนำตัว\n' + """```ชื่อ : 
-อายุ : 
-IGN(ชื่อในเกม) : 
-CLAN : ```""" + '\n' + '''```ปล.1 สามารถกดปุ่ม Shift ค้าง + Enter เพื่อขึ้นบรรทัดใหม่ขณะพิมพ์ได้
-ปล.2 ถ้าไม่ต้องการระบุ อายุ หรือ Clan สามารถใส่เป็น - ได้
-ปล.3 เมื่อแนะนำตัวตามรูปแบบดังกล่าวแล้ว ห้องต่าง ๆ จะปรากฏขึ้น
-```''')
+            embed = discord.Embed(title="Welcome " + member.display_name, description = 'อย่าลืมแนะนำตัวในห้อง welcome_room ภายใน 30 นาที ตามตัวอย่างในรูปนะครับ แล้วห้องต่าง ๆ จะปรากฏขึ้น', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+            embed.add_field(name='สามารถ Copy ไปเติมได้', value="""ชื่อ :
+อายุ :
+IGN(ชื่อในเกม) :
+CLAN :""", inline=False)
+            embed.set_image(url='https://cdn.discordapp.com/attachments/468032916270743564/672090545555898388/Capture.JPG')
+            embed.set_footer(text='ปล. ในDiscord[PC] สามารถขึ้นบรรทัดใหม่ด้วยการกดปุ่ม Shift ค้าง + ปุ่ม Enter(จำเป็นต้องขึ้นบรรทัดใหม่)', icon_url=bot.data['icon']) 
+            await member.send(embed=embed)
 
         except:
             pass
