@@ -14,7 +14,14 @@ def set_on_message(bot):
                 if message.author.id == 602322701146914829:
                     return
                 if message.channel.id != int(bot.data['channels']['botcommands']):
-                    await message.channel.send(message.content, delete_after = 1800.0)
+                    embed = message.embeds
+                    files = []
+                    for att in message.attachments:
+                        files.append(await att.to_file())
+                    try:
+                        await message.channel.send(content=message.content, embed=embed[0], files=files, delete_after = 1800.0)
+                    except IndexError:
+                        await message.channel.send(content=message.content, files=files, delete_after = 1800.0)
                     await message.delete()
                 return
 
@@ -41,7 +48,7 @@ def set_on_message(bot):
 
                     value = string.strip().replace(temp,'').strip()
 
-                    if value == "" and key != "Clan" and key != "Age":
+                    if (value == "" or value == "-") and key != "Clan" and key != "Age":
                         break
 
                     if maximum > 0.6:
@@ -56,11 +63,19 @@ def set_on_message(bot):
                     await message.author.add_roles(checkedIntro)
                     await message.author.remove_roles(waitingIntro)
                     await message.add_reaction("✅")
-                    embed = discord.Embed(title="Welcome " + message.author.name, description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+
+                    try:
+                        await message.author.edit(nick=profile['Ign']+'['+profile['Name']+']['+profile['Age']+']')
+                    except:
+                        pass
+
+                    embed = discord.Embed(title="Welcome " + profile['Name'], description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
                     embed.add_field(name= "!sentient", value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "!arbitration {mode}", value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "!price {item name}", value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
                     embed.add_field(name= "!info {item name}", value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                    embed.add_field(name= "!build {item name}", value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
+                    embed.add_field(name= "!kuva {item name} {element}", value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                     embed.set_footer(text='Uncle Cat (ลุงแมว) Discord', icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
                     maximum = 0
@@ -75,13 +90,14 @@ def set_on_message(bot):
                 else:
                     await message.add_reaction("❌")
                     embed = discord.Embed(title="Hello " + message.author.name, description = 'แนะนำตัวใหม่ในห้อง welcome_room ตามรูปแบบที่กำหนดนะครับ', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
-                    embed.add_field(name='ถ้าไม่ต้องการใส่อายุ หรือ Clan สามารถใส่เป็น - ได้', value="""ชื่อ :
+                    embed.add_field(name='ถ้าไม่ต้องการใส่อายุ หรือ Clan สามารถใส่เป็น - ได้', value="""```ชื่อ :
 อายุ :
 IGN(ชื่อในเกม) :
-CLAN :""", inline=False)
+CLAN :```""", inline=False)
                     embed.set_image(url='https://cdn.discordapp.com/attachments/468032916270743564/672090545555898388/Capture.JPG')
                     embed.set_footer(text='ปล. ในDiscord[PC] สามารถขึ้นบรรทัดใหม่ด้วยการกดปุ่ม Shift ค้าง + ปุ่ม Enter(จำเป็นต้องขึ้นบรรทัดใหม่)', icon_url=bot.data['icon']) 
-                    await message.author.send(embed=embed)                    
+                    await message.author.send(embed=embed)
+                    await message.delete(delay=60)
 
                     return
 
@@ -189,6 +205,42 @@ CLAN :""", inline=False)
                     await message.add_reaction("✅")                
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+            if message.channel == bot.data['channel']['build']:
+                stringList = re.split('\n',message.content.strip().replace(':',' '))
+                profile = {}
+                for string in stringList:
+                    try:
+                        temp = re.search(r'^[^\s]+', string.strip()).group()
+                        key = ''
+                        maximum = 0
+                        for pred in ['Name', 'IGN', 'Description']:
+                            ratio = SequenceMatcher(None,pred.lower(),temp.lower()).ratio()
+                            if ratio > maximum:
+                                key = pred
+                                maximum = ratio
+                        value = string.strip().replace(temp,'').strip()
+
+                        if maximum > 0.8:
+                            profile[key] = value
+
+                        if ['Description', 'IGN', 'Name'] == sorted(list(profile.keys())):
+                            attachments = message.attachments[0].url            
+                            if profile['Name'] in bot.data['build']:
+                                bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                                'IGN':profile['IGN'],
+                                'Description':profile['Description'],
+                                'Image':attachments })                  
+                            else:
+                                bot.data['build'][profile['Name']] = []
+                                bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                                'IGN':profile['IGN'],
+                                'Description':profile['Description'],
+                                'Image':attachments }) 
+                    except AttributeError:
+                        pass
+                return
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
 
             if message.channel.id != int(bot.data['channels']['botcommands']):
                 return
@@ -241,6 +293,24 @@ CLAN :""", inline=False)
                     await message.author.add_roles(role)
                 await message.add_reaction("✅")
 
+            elif message.content.startswith("!build"):
+                target = message.content.replace('!build', '').lower().replace('prime', '').replace('kuva', '').replace('vandal', '').replace('wraith', '').replace('mara', '').replace('prisma', '').strip()
+                embedList = []
+                for name in bot.data['build']:
+                    ratio = SequenceMatcher(None,name.lower().replace('prime', '').replace('kuva', '').replace('vandal', '').replace('wraith', '').replace('mara', '').replace('prisma', '').strip(),target).ratio()
+                    if ratio >= 0.8:
+                        for item in bot.data['build'][name]:
+                            embedList.append(item)
+                for emb in embedList:
+                    embed = discord.Embed(title=(emb['Name']+' Build').strip(), 
+                    url = emb['Image'], 
+                    description = 'Description : ' + emb['Description'],
+                    color=0x00ff00)
+                    embed.set_image(url=emb['Image'])
+                    embed.set_footer(text='From : '+emb['IGN'], icon_url=bot.data['icon']) 
+                    await message.author.send(embed = embed)
+                await message.delete()
+
             elif message.content.startswith('!info'):
                 itemName = bot.data['itemCollector'].toName(message.content.replace('!info','').strip().lower())
                 info = bot.data['itemCollector'].getInfo(itemName)
@@ -250,6 +320,31 @@ CLAN :""", inline=False)
                     embed.add_field(name= '[ Drop ]', value = drop['name'])
                 embed.set_footer(text='Uncle Cat (ลุงแมว) Discord', icon_url=bot.data['icon'])                    
                 await message.channel.send(embed=embed)
+                await message.add_reaction("✅")
+
+            elif message.content.startswith('!kuva'):
+                temp = message.content.replace('!kuva', '').lower().split()
+                if len(temp) < 2:
+                    await message.add_reaction("❌")
+                    return
+                weaponName = ' '.join(temp[:len(temp)-1])
+                elemental = temp[len(temp)-1]
+                maximum = 0
+                predElement = ''
+                for pred in ['impact', 'heat', 'cold', 'electricity', 'toxin', 'magnetic', 'radiation']:
+                    ratio = SequenceMatcher(None, pred, elemental).ratio()
+                    if ratio > maximum:
+                        maximum = ratio
+                        predElement = pred
+            
+                weaponName, weaponList = bot.data['itemCollector'].getKuvaWeaponPrice(weaponName)
+                embed = discord.Embed(title='Kuva '+weaponName.title()+" Sellers", 
+                url = 'https://www.warframeteams.com/index.php', color=0x00ff00)
+                for item in weaponList:
+                    if item.elemental.lower() == predElement:
+                        embed.add_field(name= str(item), value=item.getMessage(), inline=False)
+                embed.set_footer(text='Uncle Cat (ลุงแมว) Discord', icon_url=bot.data['icon'])                     
+                await message.channel.send(embed=embed, delete_after=300)
                 await message.add_reaction("✅")
 
             elif message.content == "!sentient":
@@ -268,6 +363,8 @@ CLAN :""", inline=False)
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "!price {item name}", value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
                 embed.add_field(name= "!info {item name}", value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                embed.add_field(name= "!build {item name}", value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
+                embed.add_field(name= "!kuva {item name} {element}", value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                 embed.set_footer(text='Uncle Cat (ลุงแมว) Discord', icon_url=bot.data['icon']) 
                 await message.author.send(embed=embed)                
                 await message.add_reaction("✅")
@@ -275,7 +372,7 @@ CLAN :""", inline=False)
             elif message.content.startswith('!'):
                 command = message.content.replace('!','').split()[0]
                 predicted = []
-                for com in ['sentient','info','arbitration','price','help']:
+                for com in ['sentient','info','arbitration','price','help','build','kuva']:
                     if SequenceMatcher(None,com.lower(),command).ratio() >= 0.8:
                         predicted.append('!'+com)
                 if len(predicted) > 0:
@@ -327,7 +424,8 @@ CLAN :""", inline=False)
                     return
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------- external ------------------------
-        except:
+        except Exception as e:
+            print(e)
             try:
                 await message.add_reaction("❌")
             except:

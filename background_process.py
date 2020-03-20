@@ -1,13 +1,12 @@
-import discord, asyncio, json, re, sys
-from discord.ext import tasks, commands
+import discord, asyncio, sys, re
+from discord.ext import tasks
 from datetime import datetime, timedelta
 from externalModules import worldStat, itemInfo
-from bs4 import BeautifulSoup
-from urllib.request import urlopen, Request
+from difflib import SequenceMatcher
 
 def set_background_process(bot):
 
-    @tasks.loop(seconds=1.0)
+    @tasks.loop(seconds=3.0)
     async def cycleMessage():
 
         currentTime = (datetime.now() + timedelta(hours=7)).replace(microsecond=0)
@@ -17,8 +16,11 @@ def set_background_process(bot):
                 await bot.data['message']['arbyMention'].delete()
             except (UnboundLocalError, discord.NotFound):
                 pass
-            bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send(bot.data['arbitration'][bot.data['world_data'].arbitration.getMention()])
-
+            try:
+                bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send(bot.data['arbitration'][bot.data['world_data'].arbitration.getMention()])
+            except KeyError:
+                pass
+            
         if bot.data["world_data"].sentientOutposts.needMention:
             bot.data["mentioned_sentient"] = await bot.data['channel']['alert'].send(bot.data['Sentient'])
             bot.data["world_data"].sentientOutposts.needMention = False
@@ -40,7 +42,7 @@ def set_background_process(bot):
                 embed.set_footer(text='Current Time : ' + currentTime.strftime("%H:%M (%m/%d/%Y)"), icon_url=bot.data['icon']) 
 
                 await bot.data['message']['embedMessage'].edit(content = None, embed = embed)
-
+            
         except discord.NotFound:
             
             async for message in bot.data['channel']['alert'].history():
@@ -117,29 +119,67 @@ def set_background_process(bot):
         bot.data['world_data'] = worldStat.WorldStat() 
 
     @tasks.loop(seconds=60.0)
-    async def updateAlliance():
+    async def updateDiscordData():
         temp = set()
         async for message in bot.data['channel']['ally'].history():
             mes = message.content.split('\n')
             for m in mes:
                 try:
                     key = re.search(r'^Clan :',m).group()
-                except:
+                except AttributeError:
                     key = ''
                 value = m.replace(key,'')
                 if key == 'Clan :':
                     temp.add(value.strip())
+                    
         del bot.data['ally']
         bot.data['ally'] = temp
 
-    @updateAlliance.before_loop
-    async def before_updateAlliance():
+    @updateDiscordData.before_loop
+    async def before_updateDiscordData():
         await bot.client.wait_until_ready()
         bot.data['channel']['ally'] = bot.client.get_channel(int(bot.data['channels']['ally']))
+        bot.data['channel']['build'] = bot.client.get_channel(int(bot.data['channels']['build']))
         bot.data['ally'] = set()
+        bot.data['build'] = {}
+        async for message in bot.data['channel']['build'].history():
+            stringList = re.split('\n',message.content.strip().replace(':',' '))
+            profile = {}
+            for string in stringList:
+                try:
+                    temp = re.search(r'^[^\s]+', string.strip()).group()
+                    key = ''
+                    maximum = 0
+                    for pred in ['Name', 'IGN', 'Description']:
+                        ratio = SequenceMatcher(None,pred.lower(),temp.lower()).ratio()
+                        if ratio > maximum:
+                            key = pred
+                            maximum = ratio
+                    value = string.strip().replace(temp,'').strip()
+
+                    if maximum > 0.8:
+                        profile[key] = value
+
+                    if ['Description', 'IGN', 'Name'] == sorted(list(profile.keys())):
+                        attachments = message.attachments[0].url             
+                        if profile['Name'] in bot.data['build']:
+                            bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                            'IGN':profile['IGN'],
+                            'Description':profile['Description'],
+                            'Image':attachments
+                            })                    
+                        else:
+                            bot.data['build'][profile['Name']] = []
+                            bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                            'IGN':profile['IGN'],
+                            'Description':profile['Description'],
+                            'Image':attachments
+                            })  
+                except AttributeError:
+                    pass
     
     updateData.start()
     memberCycle.start()
     cycleMessage.start()
-    updateAlliance.start()
+    updateDiscordData.start()
     

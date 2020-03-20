@@ -1,28 +1,7 @@
-from bs4 import BeautifulSoup
-from urllib.request import urlopen, Request
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 import microgear.client as client
-import json, re
-
-class Mission():
-    
-    def __init__(self, node, type, enemy, darksector):
-        self.node = node
-        self.type = type
-        self.enemy = enemy
-        self.darksector = darksector
-
-def setMission():
-
-    data = {}
-
-    with open('MissionData.json', 'r') as file:
-        temp = json.load(file)
-
-    for key in temp:
-        data[key] = Mission(temp[key]['value'], temp[key]['type'], temp[key]['enemy'], temp[key]['darksector'])
-
-    return data
+import requests, json, re
 
 class SentientAnomaly():
 
@@ -65,17 +44,22 @@ class SentientAnomaly():
                 predicted = 151 
             self.nextArrive = (self.lastArrive + timedelta(minutes=predicted)).strftime("%H:%M")
 
-        if data['mission'] == self.currentMission and self.currentMission == None:
-            self.firstUpdate = False
-            return
-        elif data['mission'] == None:
+        if data['mission'] == None:
             self.currentMission = None
             self.remainingTime = None
+            predicted = self.period+3.1
+            if predicted >= 210:
+                predicted = 151 
+            predictedTime = self.lastArrive + timedelta(minutes=predicted)
+            if currentTime > predictedTime and (currentTime - predictedTime).seconds > 300:
+                self.nextArrive = (self.lastArrive + timedelta(minutes=self.period+3.1)).strftime("%H:%M")
+
         elif data['mission']['node'] == self.currentMission:
             remaining = (self.lastArrive + timedelta(minutes=30) - currentTime).seconds//60
             if self.lastArrive + timedelta(minutes=30) < currentTime or remaining == 0:
                 remaining = '<1'
-            self.remainingTime = str(remaining) + ' minutes'          
+            self.remainingTime = str(remaining) + ' minutes' 
+
         elif data['mission'] != None and self.currentMission == None:
             self.currentMission = data['mission']['node']
             self.remainingTime = '30 minutes'
@@ -89,15 +73,16 @@ class SentientAnomaly():
                 client.publish(self.sentientOutPoseLastArrive, currentTime.ctime(), {'retain':True})
                 client.publish(self.sentientOutPosePeriod, self.period, {'retain':True})
             self.needMention = True
+
         self.firstUpdate = False
 
     def __str__(self):
-        return """[ Sentient Anomaly ] \nLocation : """ + str(self.currentMission) + "\nAvailable : " + str(self.remainingTime)+"""
-Expected Next : """ + str(self.nextArrive)
+        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(str(self.currentMission),
+        str(self.remainingTime),str(self.nextArrive))
 
     def __repr__(self):
-        return """[ Sentient Anomaly ] \nLocation : """ + str(self.currentMission) + "\nAvailable : " + str(self.remainingTime)+"""
-Expected Next : """ + str(self.nextArrive)
+        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(str(self.currentMission),
+        str(self.remainingTime),str(self.nextArrive))
 
 class Arbitration():
     
@@ -106,15 +91,17 @@ class Arbitration():
         self.remainingTime = None
         self.currentMission = None
         self.needMention = False
-        self.waitingState = False
+        self.waitingState = True
 
-    def update(self, missions, node):
+    def update(self, mission):
+        if len(mission) != 7:
+            return
         currentTime = datetime.now().replace(microsecond=0)
-        if self.prevArbitration != node:
+        if self.prevArbitration != mission:
             self.needMention = True
             self.waitingState = False
-        self.prevArbitration = node
-        self.currentMission = missions[node]
+        self.prevArbitration = mission
+        self.currentMission = mission
         self.remainingTime = (timedelta(minutes=65)-timedelta(minutes=currentTime.minute)).seconds//60
         if self.remainingTime > 60:
             self.remainingTime -= 60
@@ -126,22 +113,29 @@ class Arbitration():
         else:
             self.remainingTime = str(self.remainingTime) + " minutes"
 
-
     def getMention(self):
         self.needMention = False
-        return self.currentMission.type
+        maximum = 0
+        predictedType = ''
+        for missionType in ['survival', 'defense', 'defection', 'disruption', 
+        'excavation', 'interception', 'infested salvage']:
+            ratio = SequenceMatcher(None, self.currentMission['type'].lower(), missionType).ratio()
+            if ratio > maximum:
+                maximum = ratio
+                predictedType = missionType
+        return predictedType.capitalize()
 
     def __str__(self):
         if self.waitingState:
-                    return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
-        return """[ Arbitration ] \nLocation : """ + self.currentMission.node + " (Available : " + self.remainingTime + ')\nEnemy : ' + \
-            self.currentMission.enemy + '\nType : ' + self.currentMission.type
+            return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
+        return """[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}""".format(str(self.currentMission['node']),
+        self.remainingTime, str(self.currentMission['enemy']), str(self.currentMission['type']).replace("Dark Sector ",""))
 
     def __repr__(self):
         if self.waitingState:
-                    return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""        
-        return """[ Arbitration ] \nLocation : """ + self.currentMission.node + " (Available : " + self.remainingTime + ')\nEnemy : ' + \
-            self.currentMission.enemy + '\nType : ' + self.currentMission.type
+            return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
+        return """[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}""".format(str(self.currentMission['node']),
+        self.remainingTime, str(self.currentMission['enemy']), str(self.currentMission['type']).replace("Dark Sector ",""))
 
 class TimeCycle():
 
@@ -168,14 +162,12 @@ class TimeCycle():
             self.vallisTime = '<1m'          
 
     def __str__(self):
-        return """[ Time Cycle ]
-Earth : """ + self.earthState + " (Available : " + self.earthTime + ")\nCetus : " + self.cetusState + \
-    " (Available : " + self.cetusTime + ")\nFortuna : " + self.vallisState + " (Available : " + self.vallisTime + ")"
+        return """[ Time Cycle ]\nEarth : {} (Available : {})\nCetus : {} (Available : {})\nFortuna : {} (Available : {})""".format(self.earthState,
+        self.earthTime, self.cetusState, self.cetusTime, self.vallisState, self.vallisTime)
 
     def __repr__(self):
-        return """[ Time Cycle ]
-Earth : """ + self.earthState + " (Available : " + self.earthTime + ")\nCetus : " + self.cetusState + \
-    " (Available : " + self.cetusTime + ")\nFortuna : " + self.vallisState + " (Available : " + self.vallisTime + ")"
+        return """[ Time Cycle ]\nEarth : {} (Available : {})\nCetus : {} (Available : {})\nFortuna : {} (Available : {})""".format(self.earthState,
+        self.earthTime, self.cetusState, self.cetusTime, self.vallisState, self.vallisTime)
 
 class News():
 
@@ -207,7 +199,6 @@ class News():
 class WorldStat():
 
     def __init__(self):
-        self.missions = setMission()
         self.sentientOutposts = SentientAnomaly()
         self.timeCycle = TimeCycle() 
         self.arbitration = Arbitration()
@@ -215,21 +206,15 @@ class WorldStat():
         
     def update(self):
         try:
-            temp = json.loads(str(BeautifulSoup(urlopen(Request('https://api.warframestat.us/pc', 
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})), 
-            'html.parser')))
+            temp = json.loads(requests.get('https://api.warframestat.us/pc').text)
 
             self.sentientOutposts.update(temp['sentientOutposts'])
             self.timeCycle.update(temp['cetusCycle'], temp['earthCycle'], temp['vallisCycle'])
-            try:
-                self.arbitration.update(self.missions, temp['arbitration']['solnode'])
-            except KeyError:
-                self.arbitration.update(self.missions, 'SolNode308')
+            self.arbitration.update(temp['arbitration'])
+            
             for index in range(len(temp['news'])-1,-1,-1):
                 if 'en' in temp['news'][index]['translations']:
                     self.news.update(temp['news'][index])
                     break
-
-            return True
         except:
-            return False  
+            pass

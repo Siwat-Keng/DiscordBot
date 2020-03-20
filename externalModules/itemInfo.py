@@ -1,7 +1,6 @@
 from bs4 import BeautifulSoup
-from urllib.request import urlopen, Request
 from difflib import SequenceMatcher
-import json
+import requests, urllib.request, json
 
 class MarketItem():
 
@@ -51,6 +50,79 @@ class MarketItem():
     def getSellMessage(self):
         return "/w "+self.user+" Hi! I want to buy: "+self.name+" for "+str(self.price)+" platinum. (warframe.market)"
 
+class KuvaWeapon:
+
+    def __init__(self, ign, name, elemental, bonus, ephemera, price):
+        self.ign = ign
+        self.name = name
+        self.elemental = elemental
+        self.bonus = bonus
+        self.ephemera = ephemera
+        self.price = price
+
+    def __lt__(self, other):
+        if self.name == other.name:
+            if self.elemental == other.elemental:
+                if self.bonus == other.bonus:
+                    self.elemental < other.elemental
+                else:
+                    self.bonus < other.bonus
+                return self.price < other.price
+            else:
+                self.elemental < other.elemental
+        else:
+            return self.name < other.name
+
+    def __le__(self, other):
+        if self.name == other.name:
+            if self.elemental == other.elemental:
+                if self.bonus == other.bonus:
+                    self.elemental <= other.elemental
+                else:
+                    self.bonus <= other.bonus
+                return self.price <= other.price
+            else:
+                self.elemental <= other.elemental
+        else:
+            return self.name <= other.name
+
+    def __gt__(self, other):
+        if self.name == other.name:
+            if self.elemental == other.elemental:
+                if self.bonus == other.bonus:
+                    self.elemental > other.elemental
+                else:
+                    self.bonus > other.bonus
+                return self.price > other.price
+            else:
+                self.elemental > other.elemental
+        else:
+            return self.name > other.name
+
+    def __eq__(self, other):
+        return self.name == other.name and self.price == other.price and self.elemental == other.elemental and self.bonus == other.bonus             
+
+    def __str__(self):
+        if self.ephemera == '':
+            ephemera = 'No'
+        else:
+            ephemera = 'Yes'
+        return "Weapon : " + self.name + " Elemental : " + self.elemental + "(" + self.bonus + ") Ephemera : " + ephemera
+        
+    def __repr__(self):
+        if self.ephemera == '':
+            ephemera = 'No'
+        else:
+            ephemera = 'Yes'        
+        return "Weapon : " + self.name + " Elemental : " + self.elemental + "(" + self.bonus + ") Ephemera : " + ephemera
+
+    def getMessage(self):
+        if self.ephemera == '':
+            ephemera = ' '
+        else:
+            ephemera = self.ephemera + ' '        
+        return "/w "+self.ign+" Hi! I want to buy " + self.name + ' ' + self.elemental + " " + self.bonus + " " + ephemera + "for "+str(self.price)+" platinum.(WarframeTeams.com)"
+
 class ItemInfo():
 
     def __init__(self):
@@ -60,8 +132,7 @@ class ItemInfo():
 
     def update(self):
         try:
-            self.collector = json.loads(str(BeautifulSoup(urlopen(Request('http://api.warframe.market/v1/items' ,
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 'html.parser')))['payload']['items']
+            self.collector = json.loads(requests.get('https://api.warframe.market/v1/items').text)['payload']['items']
             for item in self.collector:
                 self.name[item['url_name']] = item['item_name']
                 self.url[item['item_name']] = item['url_name']
@@ -89,10 +160,8 @@ class ItemInfo():
                 itemUrl = item        
         return self.name[itemUrl]
 
-    def getInfo(self, name):
-        info = json.loads(str(BeautifulSoup(urlopen(Request('https://api.warframe.market/v1/items/' + self.url[name], 
-        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 
-        'html.parser')))['payload']['item']['items_in_set']
+    def getInfo(self, name): 
+        info = json.loads(requests.get('https://api.warframe.market/v1/items/' + self.url[name]).text)['payload']['item']['items_in_set']
         for item in info:
             if item['en']['item_name'] == name:
                 return item['en']
@@ -105,9 +174,8 @@ class ItemInfo():
         output['itemName'] = name
         maximum = -1
 
-        for order in json.loads(BeautifulSoup(urlopen(Request(output['url'] ,
-                                                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'})).read(), 
-                                                            'html.parser').find('script', id='application-state').contents[0])['payload']['orders']:
+        for order in json.loads(BeautifulSoup(requests.get(output['url']).text, "html.parser").find('script', 
+        id='application-state').contents[0])['payload']['orders']:
             if(order['user']['status'] == 'ingame'):
                 if(order['order_type'] == 'buy'):
                     if 'mod_rank' in order:
@@ -134,4 +202,27 @@ class ItemInfo():
         for items in output['sell']:
             items.sort()          
 
-        return output      
+        return output  
+
+    def getKuvaWeaponPrice(self, name):
+        data = BeautifulSoup(requests.get('https://www.warframeteams.com/index.php').text, "html.parser").find_all('tr')
+        key = data[0].get_text().strip('\n').split('\n')
+        result = {}
+        for i in data[1:]:
+            info = i.get_text().strip('\n').split('\n')
+            if len(info) != len(key):
+                continue
+            if info[2] not in result and info[1] == 'In game':
+                result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
+            elif info[1] == 'In game':
+                result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))
+
+        maximum = 0
+        weaponName = ''
+        for item in result:
+            ratio = SequenceMatcher(None,name.lower(),item.lower()).ratio()
+            if ratio > maximum:
+                maximum = ratio
+                weaponName = item    
+
+        return (weaponName, sorted(result[weaponName]))

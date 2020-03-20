@@ -13,14 +13,13 @@ def get_data(location):
 
 
 class DiscordBot:
-
     
     
     def __init__(self,location):
 
-        self.client = discord.Client()
         self.data = get_data(location)
         self.data['admins'] = set(self.data['admins'].split())
+        self.client = discord.Client()
 
         on_message.set_on_message(self)
         on_message.set_on_message_delete(self)
@@ -28,7 +27,7 @@ class DiscordBot:
         on_member_join.set_on_member_join(self)
         on_member_remove.set_on_member_remove(self)
         background_process.set_background_process(self)
-        on_reaction_add.set_on_reaction_add(self)
+        on_reaction_add.set_on_reaction_add(self)  
 
 
     def run(self):
