@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
-from difflib import SequenceMatcher
-import requests, urllib.request, json
+from difflib import get_close_matches
+import requests, json
 
 class MarketItem():
 
@@ -141,24 +141,16 @@ class ItemInfo():
             return False        
     
     def toUrl(self, name):
-        maximum = 0
-        itemName = ''
-        for item in self.url:
-            ratio = SequenceMatcher(None,name.lower(),item).ratio()
-            if ratio > maximum:
-                maximum = ratio
-                itemName = item
-        return self.url[itemName]
+        try:
+            return self.url[get_close_matches(name,self.url.keys(),1)[0]]
+        except IndexError:
+            return ""
 
     def toName(self, url):
-        maximum = 0
-        itemUrl = ''
-        for item in self.name:
-            ratio = SequenceMatcher(None,url.lower(),item).ratio()
-            if ratio > maximum:
-                maximum = ratio
-                itemUrl = item        
-        return self.name[itemUrl]
+        try:
+            return self.name[get_close_matches(url,self.name.keys(),1)[0]]
+        except IndexError:
+            return ""
 
     def getInfo(self, name): 
         info = json.loads(requests.get('https://api.warframe.market/v1/items/' + self.url[name]).text)['payload']['item']['items_in_set']
@@ -204,25 +196,37 @@ class ItemInfo():
 
         return output  
 
-    def getKuvaWeaponPrice(self, name):
-        data = BeautifulSoup(requests.get('https://www.warframeteams.com/index.php').text, "html.parser").find_all('tr')
-        key = data[0].get_text().strip('\n').split('\n')
-        result = {}
-        for i in data[1:]:
-            info = i.get_text().strip('\n').split('\n')
-            if len(info) != len(key):
-                continue
-            if info[2] not in result and info[1] == 'In game':
-                result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
-            elif info[1] == 'In game':
-                result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))
+    def getKuvaWeaponPrice(self, name, bonus):
 
-        maximum = 0
-        weaponName = ''
-        for item in result:
-            ratio = SequenceMatcher(None,name.lower(),item.lower()).ratio()
-            if ratio > maximum:
-                maximum = ratio
-                weaponName = item    
+        raw_data = BeautifulSoup(requests.get('https://www.warframeteams.com/index.php').text, "html.parser")
+        data = raw_data.find_all('tr')
+        sector_data = raw_data.findAll("div", {"class": "wfmain"})
+        raw_weapon = sector_data[0]
+        raw_bonus = sector_data[1]
+        weapons = []
+        bonuses = []
+        for w in raw_weapon.findAll("form", {"class": "warframesmainform"}):
+            weapons.append(w.find("input")['value'])
 
-        return (weaponName, sorted(result[weaponName]))
+        for w in raw_bonus.findAll("form", {"class": "warframesmainform"}):
+            bonuses.append(w.find("input")['value'])
+        try:
+            weaponName = get_close_matches(name,weapons.keys(), 1)[0]
+            elementalName = get_close_matches(bonus,bonuses.keys(), 1)[0]
+        except IndexError:
+            weaponName = ''
+            elementalName = ''   
+        try:
+            key = data[0].get_text().strip('\n').split('\n')
+            result = {}
+            for i in data[1:]:
+                info = i.get_text().strip('\n').split('\n')
+                if len(info) != len(key):
+                    continue
+                if info[2] not in result and info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
+                    result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
+                elif info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
+                    result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))  
+            return (weaponName, sorted(result[weaponName]))
+        except KeyError:
+            return (weaponName, {})

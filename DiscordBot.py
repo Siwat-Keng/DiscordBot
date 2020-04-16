@@ -33,13 +33,3 @@ class DiscordBot:
     def run(self):
 
         self.client.run(self.data['token'])
-
-
-        
-
-
-    
-
-
-    
-        

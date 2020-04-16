@@ -1,88 +1,44 @@
 from datetime import datetime, timedelta
-from difflib import SequenceMatcher
-import microgear.client as client
+from difflib import get_close_matches
 import requests, json, re
 
 class SentientAnomaly():
 
     def __init__(self):
-        self.period = None
         self.currentMission = None
         self.remainingTime = None
-        self.lastArrive = None
         self.nextArrive = None
         self.needMention = False
-        self.firstUpdate = True
-        self.sentientOutPoseLastArrive = "/sentientOutPoseLastArrive"
-        self.sentientOutPosePeriod = "/sentientOutPosePeriod"
-
-        appid = 'Discord'
-        gearkey = 'xLwW8SP58CvHYvl'
-        gearsecret = 'gqDGYfA4FKieYh3bqbTId9jWF'
-
-        client.create(gearkey,gearsecret,appid)
-
-        def subscription(topic,message):
-            if topic == '/'+appid+self.sentientOutPoseLastArrive and self.firstUpdate:
-                self.lastArrive = datetime.strptime(message,"b'%a %b %d %H:%M:%S %Y'")
-            elif topic == '/'+appid+self.sentientOutPosePeriod and self.firstUpdate:
-                self.period = float(message[2:len(message)-1])
-        
-        client.setalias("uncle-bot")
-        client.setname("uncle-bot")
-        client.on_message = subscription
-        client.subscribe(self.sentientOutPoseLastArrive)
-        client.subscribe(self.sentientOutPosePeriod)
-        client.connect()
-        
+                
     def update(self, data):
-        currentTime = datetime.now().replace(microsecond=0) + timedelta(hours=7)
+        currentTime = datetime.now().replace(microsecond=0)
 
-        if self.firstUpdate:
-            predicted = self.period+3.1
-            if predicted >= 210:
-                predicted = 151 
-            self.nextArrive = (self.lastArrive + timedelta(minutes=predicted)).strftime("%H:%M")
-
-        if data['mission'] == None:
-            self.currentMission = None
-            self.remainingTime = None
-            predicted = self.period+3.1
-            if predicted >= 210:
-                predicted = 151 
-            predictedTime = self.lastArrive + timedelta(minutes=predicted)
-            if currentTime > predictedTime and (currentTime - predictedTime).seconds > 300:
-                self.nextArrive = (self.lastArrive + timedelta(minutes=self.period+3.1)).strftime("%H:%M")
-
-        elif data['mission']['node'] == self.currentMission:
-            remaining = (self.lastArrive + timedelta(minutes=30) - currentTime).seconds//60
-            if self.lastArrive + timedelta(minutes=30) < currentTime or remaining == 0:
-                remaining = '<1'
-            self.remainingTime = str(remaining) + ' minutes' 
-
-        elif data['mission'] != None and self.currentMission == None:
-            self.currentMission = data['mission']['node']
-            self.remainingTime = '30 minutes'
-            if not self.firstUpdate:
-                self.period = (currentTime - self.lastArrive).seconds/60
-                predicted = self.period + 3.1
-                if predicted >= 210:
-                    predicted = 151
-                self.nextArrive = (currentTime + timedelta(minutes=predicted)).strftime("%H:%M")
-                self.lastArrive = currentTime
-                client.publish(self.sentientOutPoseLastArrive, currentTime.ctime(), {'retain':True})
-                client.publish(self.sentientOutPosePeriod, self.period, {'retain':True})
+        if self.currentMission != data['mission'] and self.currentMission == None:
             self.needMention = True
 
-        self.firstUpdate = False
+        try:
+            self.currentMission = data['mission']['node']
+        except (TypeError,KeyError):
+            self.currentMission = None
+
+        self.nextArrive = (datetime.strptime(data['activation'],
+        "%Y-%m-%dT%H:%M:%S.%fZ") + timedelta(hours=7)).strftime("%H:%M")
+
+        if data['active']:
+            remainingTime = (datetime.strptime(data['previous']['expiry'],
+            "%Y-%m-%dT%H:%M:%S.%fZ") - currentTime).seconds//60
+            if remainingTime < 0: remainingTime = '<1 minute'
+            self.remainingTime = "{} minutes".format(remainingTime)
+        else:
+            self.remainingTime = None
 
     def __str__(self):
-        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(str(self.currentMission),
-        str(self.remainingTime),str(self.nextArrive))
+        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(self.currentMission,
+        self.remainingTime,self.nextArrive)
 
     def __repr__(self):
-        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(str(self.currentMission),
-        str(self.remainingTime),str(self.nextArrive))
+        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(self.currentMission,
+        self.remainingTime,self.nextArrive)
 
 class Arbitration():
     
@@ -111,20 +67,17 @@ class Arbitration():
         elif self.remainingTime < 0:
             self.waitingState = True
         else:
-            self.remainingTime = str(self.remainingTime) + " minutes"
+            self.remainingTime = "{} minutes".format(self.remainingTime)
 
     def getMention(self):
         self.needMention = False
-        maximum = 0
-        predictedType = ''
-        for missionType in ['survival', 'defense', 'defection', 'disruption', 
-        'excavation', 'interception', 'infested salvage']:
-            ratio = SequenceMatcher(None, self.currentMission['type'].lower(), missionType).ratio()
-            if ratio > maximum:
-                maximum = ratio
-                predictedType = missionType
-        return predictedType.capitalize()
-
+        try:
+            return get_close_matches(self.currentMission['type'].lower(),['survival', 'defense', 'defection', 'disruption', 
+            'excavation', 'interception', 'infested salvage'],1)[0].capitalize()
+        except IndexError:
+            self.needMention = True
+            return ""
+            
     def __str__(self):
         if self.waitingState:
             return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
@@ -193,7 +146,7 @@ class News():
 
     def getDict(self):
         self.needEdit = False
-        return {'title':"[PC] Latest Warframe News", 'description':self.name+' ['+self.eta+']', 'url':self.url, 'color':0x00ff00}
+        return {'title':"[PC] Latest Warframe News", 'description':'{} [{}]'.format(self.name, self.eta), 'url':self.url, 'color':0x00ff00}
     
 
 class WorldStat():
@@ -207,7 +160,7 @@ class WorldStat():
     def update(self):
         try:
             temp = json.loads(requests.get('https://api.warframestat.us/pc').text)
-
+            
             self.sentientOutposts.update(temp['sentientOutposts'])
             self.timeCycle.update(temp['cetusCycle'], temp['earthCycle'], temp['vallisCycle'])
             self.arbitration.update(temp['arbitration'])

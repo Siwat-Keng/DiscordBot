@@ -1,8 +1,8 @@
-import discord, asyncio, sys, re
+import discord, sys, re
 from discord.ext import tasks
 from datetime import datetime, timedelta
 from externalModules import worldStat, itemInfo
-from difflib import SequenceMatcher
+from difflib import get_close_matches
 
 def set_background_process(bot):
 
@@ -60,14 +60,15 @@ def set_background_process(bot):
     @cycleMessage.before_loop
     async def before_cycleMessage():
 
+        bot.data['channel'] = {}
+        bot.data['message'] = {}
+
         await bot.client.wait_until_ready()
 
         game = discord.Game('!help')
         await bot.client.change_presence(status=discord.Status.online, activity=game)
-
-        bot.data['channel'] = {}
-        bot.data['message'] = {}
         
+        bot.data['channel']['general'] = bot.client.get_channel(int(bot.data['channels']['general']))
         bot.data['channel']['alert'] = bot.client.get_channel(int(bot.data['channels']['alert']))
         
         async for message in bot.data['channel']['alert'].history():
@@ -90,20 +91,53 @@ def set_background_process(bot):
                 bot.data['member_join'].remove(member)
                 
             elif (datetime.now() - member.joined_at).seconds//60 >= 31 and role not in member.roles:
+                embed = discord.Embed(title="สามารถคลิกที่นี่ เพื่อกลับเข้าสู่ Server อีกครั้ง", 
+                description = 'คุณจะถูกนำออกจาก Server เนื่องจากไม่แนะนำตัว ภายใน 30 นาที', 
+                url = 'https://discordapp.com/invite/j3HMUmW', color=0x00ff00)
+                embed.set_image(url="https://cdn.discordapp.com/attachments/633256433512611871/693076211794182226/unknown.png")
+                embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])   
                 try:
-                    await member.send("""```css
-[ คุณจะถูกเตะเนื่องจากไม่แนะนำตัว ภายใน 30 นาที ]```""")
+                    await member.send(embed=embed)
                 except:
                     pass
                 try:
                     await member.kick(reason = 'ไม่รายงานตัว')
                 except:
                     pass
-                bot.data['member_join'].remove(member)  
+                try:
+                    bot.data['member_join'].remove(member) 
+                except ValueError:
+                    pass 
 
     @memberCycle.before_loop
     async def before_memberCycle():
-        await bot.client.wait_until_ready()
+        bot.data['members'] = {}
+        await bot.client.wait_until_ready()        
+        bot.data['channel']['intro'] = bot.client.get_channel(int(bot.data['channels']['intro']))
+        async for message in bot.data['channel']['intro'].history(limit=None):
+            stringList = re.split('\n',message.content.strip().replace(':',' '))
+            profile = {}
+            for string in stringList:
+                try:
+                    temp = re.search(r'^[^\s]+', string.strip()).group()
+                except AttributeError:
+                    temp = ''
+                try:
+                    key = get_close_matches(temp.capitalize(), ['ชื่อ','อายุ','IGN(ชื่อในเกม)','Clan','Age','Name','Ign'],1)[0]
+                    if key == 'ชื่อ':
+                        key = 'Name'
+                    elif key == 'อายุ':
+                        key = 'Age'
+                    elif key == 'IGN(ชื่อในเกม)':
+                        key = 'Ign'
+                    value = string[len(temp):].strip()
+                    if (value == "" or value == "-") and key != "Clan" and key != "Age":
+                        break
+                    profile[key] = value
+                except IndexError:
+                    pass
+            if ['Age', 'Clan', 'Ign', 'Name'] == sorted(list(profile.keys())):
+                bot.data['members'][message.author.id] = profile
 
     @tasks.loop(seconds=3.0)
     async def updateData():
@@ -121,14 +155,14 @@ def set_background_process(bot):
     @tasks.loop(seconds=60.0)
     async def updateDiscordData():
         temp = set()
-        async for message in bot.data['channel']['ally'].history():
+        async for message in bot.data['channel']['ally'].history(limit=None):
             mes = message.content.split('\n')
             for m in mes:
                 try:
                     key = re.search(r'^Clan :',m).group()
                 except AttributeError:
                     key = ''
-                value = m.replace(key,'')
+                value = m[len(key):].strip()
                 if key == 'Clan :':
                     temp.add(value.strip())
                     
@@ -142,41 +176,33 @@ def set_background_process(bot):
         bot.data['channel']['build'] = bot.client.get_channel(int(bot.data['channels']['build']))
         bot.data['ally'] = set()
         bot.data['build'] = {}
-        async for message in bot.data['channel']['build'].history():
+        async for message in bot.data['channel']['build'].history(limit=None):
             stringList = re.split('\n',message.content.strip().replace(':',' '))
             profile = {}
             for string in stringList:
                 try:
                     temp = re.search(r'^[^\s]+', string.strip()).group()
-                    key = ''
-                    maximum = 0
-                    for pred in ['Name', 'IGN', 'Description']:
-                        ratio = SequenceMatcher(None,pred.lower(),temp.lower()).ratio()
-                        if ratio > maximum:
-                            key = pred
-                            maximum = ratio
+                    key = get_close_matches(temp, ['Name', 'IGN', 'Description'],1)[0]
                     value = string.strip().replace(temp,'').strip()
-
-                    if maximum > 0.8:
-                        profile[key] = value
-
-                    if ['Description', 'IGN', 'Name'] == sorted(list(profile.keys())):
-                        attachments = message.attachments[0].url             
-                        if profile['Name'] in bot.data['build']:
-                            bot.data['build'][profile['Name']].append({'Name':profile['Name'],
-                            'IGN':profile['IGN'],
-                            'Description':profile['Description'],
-                            'Image':attachments
-                            })                    
-                        else:
-                            bot.data['build'][profile['Name']] = []
-                            bot.data['build'][profile['Name']].append({'Name':profile['Name'],
-                            'IGN':profile['IGN'],
-                            'Description':profile['Description'],
-                            'Image':attachments
-                            })  
-                except AttributeError:
+                    profile[key] = value                    
+                except (IndexError, AttributeError):
                     pass
+            if ['Description', 'IGN', 'Name'] == sorted(list(profile.keys())):
+                attachments = message.attachments[0].url             
+                if profile['Name'] in bot.data['build']:
+                    bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                    'IGN':profile['IGN'],
+                    'Description':profile['Description'],
+                    'Image':attachments
+                    })                    
+                else:
+                    bot.data['build'][profile['Name']] = []
+                    bot.data['build'][profile['Name']].append({'Name':profile['Name'],
+                    'IGN':profile['IGN'],
+                    'Description':profile['Description'],
+                    'Image':attachments
+                    })  
+
     
     updateData.start()
     memberCycle.start()
