@@ -3,7 +3,6 @@ import discord
 class PartyContainer:
 
     def __init__(self, message, embed, title, leader):
-
         self.message = message
         self.embed = embed
         self.channel = message.channel
@@ -16,12 +15,9 @@ class PartyContainer:
         self.footerText = ''
         self.icon = ''
         
-
     async def add_member(self, member):
-
         if member == self.leader or len(self.members) == 4:
             return
-
         self.members[member.id] = member
         members = self.getMembersList()
         embed = discord.Embed(title='{} Squad'.format(self.title), color=0x00ff00)
@@ -32,12 +28,10 @@ class PartyContainer:
         embed.set_footer(text=self.footerText, icon_url=self.icon)
         self.embed = embed
         await self.message.edit(embed=embed)
-
         if len(self.members) == 4:
             await self.channel.send(self.leader.mention, delete_after = 60)
 
     async def remove_member(self, member):
-
         if member != self.leader:
             del self.members[member.id]
             members = self.getMembersList()
@@ -55,7 +49,6 @@ class PartyContainer:
         return False
 
     async def refresh(self):
-
         await self.message.delete()
         self.message = await self.channel.send(embed=self.embed, delete_after=1800)
         await self.message.add_reaction("👍")
@@ -80,7 +73,6 @@ class PartyContainer:
         self.intro = intro.mention
 
     def getMembersList(self):
-
         members = ['', '', '', '']
         for index, member in enumerate(self.members):
             members[index] = self.members[member].display_name
@@ -89,7 +81,6 @@ class PartyContainer:
         return members
 
     async def getMemberProfile(self, data, number):
-
         try:
             profile = data[list(self.members.keys())[number-1]]
             embed = discord.Embed(title='Member {} [Profile]'.format(number),
@@ -102,5 +93,92 @@ class PartyContainer:
         except IndexError:
             pass
 
+class MarketRankContainer:
+    
+    def __init__(self, market, itemType, message, itemInfo, icon):
+        self.market = market
+        self.itemName = market['itemName']
+        self.currentRank = 0
+        self.type = itemType
+        self.message = message
+        self.itemInfo = itemInfo
+        self.icon = icon
+
+    async def increaseRank(self):
+        if self.market['maxRank'] <= self.currentRank:
+            self.currentRank = self.market['maxRank']
+            return
+        self.currentRank += 1
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][self.currentRank]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(embed=embed)
+                            
+    async def decreaseRank(self):
+        if self.currentRank <= 0:
+            self.currentRank = 0
+            return
+        self.currentRank -= 1
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][self.currentRank]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(embed=embed)
+
+    async def refresh(self):
+        self.market = self.itemInfo.getPrice(self.itemName)
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][self.currentRank]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(embed=embed)        
+    
+    async def setMessage(self):
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][self.currentRank]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(content = None, embed=embed)
+        await self.message.add_reaction(u"\u25C0")
+        await self.message.add_reaction(u"\u25B6")      
+        await self.message.add_reaction("🚩")
+
 class MarketContainer:
-    pass
+
+    def __init__(self, market, itemType, message, itemInfo, icon, footer):
+        self.market = market
+        self.itemName = market['itemName']
+        self.type = itemType        
+        self.message = message
+        self.itemInfo = itemInfo
+        self.icon = icon    
+        self.footer = footer
+
+    async def refresh(self):
+        self.market = self.itemInfo.getPrice(self.itemName)
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][0]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(embed=embed)        
+    
+    async def setMessage(self):
+        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
+        for index, item in enumerate(self.market[self.type][0]):
+            if index >= 5:
+                break
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content = None, embed=embed)     
+        await self.message.add_reaction("🚩")

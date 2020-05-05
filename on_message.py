@@ -2,7 +2,7 @@ import discord, asyncio, json, re
 from difflib import get_close_matches
 from datetime import datetime, timedelta
 from externalModules import itemInfo
-from externalModules.Container import PartyContainer
+from externalModules.Container import PartyContainer, MarketRankContainer, MarketContainer
 
 def set_on_message(bot):
 
@@ -14,15 +14,21 @@ def set_on_message(bot):
             if message.author.bot:
                 if message.author.id == 602322701146914829:
                     return
-                if message.channel.id != int(bot.data['channels']['botcommands']):
+                if message.channel.id not in {int(bot.data['channels']['botcommands']), 592192367663251466}:
                     embed = message.embeds
                     files = []
                     for att in message.attachments:
                         files.append(await att.to_file())
-                    try:
-                        await message.channel.send(content=message.content, embed=embed[0], files=files, delete_after = 1800.0)
-                    except IndexError:
-                        await message.channel.send(content=message.content, files=files, delete_after = 1800.0)
+                    if message.mention_everyone:
+                        try:
+                            await message.channel.send(content=message.content, embed=embed[0], files=files)
+                        except IndexError:
+                            await message.channel.send(content=message.content, files=files)
+                    else:
+                        try:
+                            await message.channel.send(content=message.content, embed=embed[0], files=files, delete_after = 1800.0)
+                        except IndexError:
+                            await message.channel.send(content=message.content, files=files, delete_after = 1800.0)
                     await message.delete()
                 return
 
@@ -63,7 +69,7 @@ def set_on_message(bot):
                         pass
 
                     embed = discord.Embed(title="Welcome {}".format(profile['Name']), description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
-                    embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
+                    # embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                     value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
@@ -97,10 +103,10 @@ CLAN :```""", inline=False)
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    
 
-            if message.channel.id == 274051068164308994 and str(message.author.id) in bot.data['admins']:
+            if str(message.channel.id) == bot.data['channels']['clan'] and len(set(message.author.roles) & bot.data['admins']) != 0:
                 currentTime = (datetime.now() + timedelta(hours=7)).ctime()
                 if message.mention_everyone:   
-                    mes = [""""""]*2
+                    mes = ['']*2
                     spec = {}
                     index = 0
                     for string in message.clean_content.split('\n'):
@@ -111,17 +117,21 @@ CLAN :```""", inline=False)
                         else:
                             mes[index] += string+'\n'
                     for member in message.channel.members:
+                        if member.bot:
+                            continue
                         try:
-                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = mes[0]+'\n'+spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'+mes[1], color=0x00ff00)
-                            embed.set_footer(text="From "+message.author.name+' ('+currentTime+')', icon_url=bot.data['icon'])
+                            spec_message = spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'
+                        except:
+                            spec_message = ''
+                        try:
+                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = mes[0]+'\n'+spec_message+mes[1], color=0x00ff00)
+                            embed.set_footer(text="From {} ({})".format(message.author.name, currentTime), icon_url=bot.data['icon'])
                             await member.send(embed=embed)
-                        except IndexError:
-                            pass
                         except discord.Forbidden:
                             await message.channel.send('Can not send message to '+member.name)
                     await message.add_reaction("✅")
                 elif len(message.mentions) != 0:
-                    mes = [""""""]*2
+                    mes = ['']*2
                     spec = {}
                     index = 0
                     for string in message.clean_content.split('\n'):
@@ -133,12 +143,14 @@ CLAN :```""", inline=False)
                             mes[index] += string+'\n'
                     for member in message.mentions:
                         try:
-                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = (mes[0]+'\n'+spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'+mes[1]), 
+                            spec_message = spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'
+                        except:
+                            spec_message = ''                       
+                        try:
+                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = (mes[0]+'\n'+spec_message+mes[1]), 
                             color=0x00ff00)
-                            embed.set_footer(text="From "+message.author.name+' ('+currentTime+')', icon_url=bot.data['icon'])
+                            embed.set_footer(text="From {} ({})".format(message.author.name, currentTime), icon_url=bot.data['icon'])
                             await member.send(embed=embed)
-                        except IndexError:
-                            pass
                         except discord.Forbidden:
                             await message.channel.send('Can not send message to {}'.format(member.name))
                     await message.add_reaction("✅")                
@@ -172,45 +184,46 @@ CLAN :```""", inline=False)
                 return
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+            if message.channel.id == 295477991356497920:
+                embed = message.embeds
+                channel = bot.client.get_channel(698812557363773471)
+                files = []
+                for att in message.attachments:
+                    files.append(await att.to_file())
+                await channel.send(content=message.content, files=files)
+                return
 
+            if message.channel.id == 698812557363773471:
+                embed = message.embeds
+                channel = bot.client.get_channel(295477991356497920)
+                files = []
+                for att in message.attachments:
+                    files.append(await att.to_file())
+                await channel.send(content=message.content, files=files)
+                return        
+            
+#--------------------------------------------------------------------------------------------------------
             if message.channel.id != int(bot.data['channels']['botcommands']):
                 return
 
             if message.content.startswith('{}price'.format(bot.data['prefix'])):
                 itemName = bot.data['itemCollector'].toName(message.content.replace('!price','').strip().lower())
                 market = bot.data['itemCollector'].getPrice(itemName)
-                embed = discord.Embed(title=itemName+" Sellers", url = market['url'], color=0x00ff00)
-                for i in range(len(market['sell'][0])):
-                    if i >= 5:
-                        break
-                    embed.add_field(name= str(market['sell'][0][i]), value=market['sell'][0][i].getSellMessage(), inline=False)
+                buyMessage = await message.channel.send('```Loading...```', delete_after=300)
+                sellMessage = await message.channel.send('```Loading...```', delete_after=300)                
                 if market['hasRank']:
-                    embed.set_footer(text='Item Rank : 0', icon_url=bot.data['icon']) 
+                    bot.data['message_caches'][buyMessage.id] = MarketRankContainer(market, 'sell', buyMessage, bot.data['itemCollector'], bot.data['icon'])
+                    bot.data['message_caches'][sellMessage.id] = MarketRankContainer(market, 'buy', sellMessage, bot.data['itemCollector'], bot.data['icon'])
                 else:
-                    embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                     
-                buyMessage = await message.channel.send(embed=embed, delete_after=300)
-                embed = discord.Embed(title=itemName+" Buyers", url = market['url'], color=0x00ff00)
-                for i in range(len(market['buy'][0])):
-                    if i >= 5:
-                        break
-                    embed.add_field(name= str(market['buy'][0][i]), value=market['buy'][0][i].getBuyMessage(), inline=False)
-                if market['hasRank']:
-                    embed.set_footer(text='Item Rank : 0', icon_url=bot.data['icon']) 
-                else:
-                    embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
-                sellMessage = await message.channel.send(embed=embed, delete_after=300)
-                if market['hasRank']:
-                    await buyMessage.add_reaction(u"\u25C0")
-                    await buyMessage.add_reaction(u"\u25B6")
-                    await sellMessage.add_reaction(u"\u25C0")
-                    await sellMessage.add_reaction(u"\u25B6")                
-                    bot.data['message_caches'][buyMessage.id] = {"currentRank":0,"market":market,"type":"sell"}
-                    bot.data['message_caches'][sellMessage.id] = {"currentRank":0,"market":market,"type":"buy"}
+                    bot.data['message_caches'][buyMessage.id] = MarketContainer(market, 'sell', buyMessage, bot.data['itemCollector'], bot.data['icon'], bot.data['footer'])
+                    bot.data['message_caches'][sellMessage.id] = MarketContainer(market, 'buy', sellMessage, bot.data['itemCollector'], bot.data['icon'], bot.data['footer'])             
+                await bot.data['message_caches'][buyMessage.id].setMessage()
+                await bot.data['message_caches'][sellMessage.id].setMessage()                    
                 await message.add_reaction("✅")
 
             elif message.content.startswith('{}arbitration'.format(bot.data['prefix'])):
                 target = message.content.replace('{}arbitration'.format(bot.data['prefix']),'')
-                roleName = get_close_matches(target, bot.data['arbitration'].keys(), 1)[0]
+                roleName = get_close_matches(target.lower(), bot.data['arbitration'].keys(), 1)[0]
                 role = discord.utils.get(message.guild.roles, name=roleName)
                 if role in message.author.roles:
                     await message.author.remove_roles(role)
@@ -295,7 +308,7 @@ CLAN :```""", inline=False)
             elif message.content == "{}help".format(bot.data['prefix']):
                 embed = discord.Embed(title="Greeting {}".format(message.author.name), 
                 description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
-                embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
+                # embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
@@ -309,7 +322,7 @@ CLAN :```""", inline=False)
 
             elif message.content.startswith('{}'.format(bot.data['prefix'])):
                 command = message.content[1:].split()[0]
-                predicted = get_close_matches(command, ['sentient','info','arbitration','price','help','build','kuva','party'],len(['sentient','info','arbitration','price','help','build','kuva','party']))
+                predicted = get_close_matches(command, ['info','arbitration','price','help','build','kuva','party'],len(['sentient','info','arbitration','price','help','build','kuva','party']))
                 if len(predicted) > 0:
                     embed = discord.Embed(title='The most similar commands', 
                     description = 'คำสั่ง {}{} ไม่มีในระบบ คำสั่งที่คล้าย ได้แก่'.format(bot.data['prefix'],command), color=0x00ff00)

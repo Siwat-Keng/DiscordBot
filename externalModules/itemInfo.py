@@ -44,11 +44,11 @@ class MarketItem():
     def __eq__(self, other):
         return self.name == other.name and self.price == other.price and self.rank == other.rank
 
-    def getBuyMessage(self):
-        return "/w "+self.user+" Hi! I want to sell: "+self.name+" for "+str(self.price)+" platinum. (warframe.market)"
-
-    def getSellMessage(self):
-        return "/w "+self.user+" Hi! I want to buy: "+self.name+" for "+str(self.price)+" platinum. (warframe.market)"
+    def getMessage(self, type):
+        if type == 'sell':
+            return "/w {} Hi! I want to buy: {} for {} platinum. (warframe.market)".format(self.user, self.name, self.price)
+        return "/w {} Hi! I want to sell: {} for {} platinum. (warframe.market)".format(self.user, self.name, self.price)
+        
 
 class KuvaWeapon:
 
@@ -142,13 +142,13 @@ class ItemInfo():
     
     def toUrl(self, name):
         try:
-            return self.url[get_close_matches(name,self.url.keys(),1)[0]]
+            return self.url[get_close_matches(name,self.url.keys(),1,0.5)[0]]
         except IndexError:
             return ""
 
     def toName(self, url):
         try:
-            return self.name[get_close_matches(url,self.name.keys(),1)[0]]
+            return self.name[get_close_matches(url,self.name.keys(),1,0.5)[0]]
         except IndexError:
             return ""
 
@@ -211,8 +211,8 @@ class ItemInfo():
         for w in raw_bonus.findAll("form", {"class": "warframesmainform"}):
             bonuses.append(w.find("input")['value'])
         try:
-            weaponName = get_close_matches(name,weapons.keys(), 1)[0]
-            elementalName = get_close_matches(bonus,bonuses.keys(), 1)[0]
+            weaponName = get_close_matches(name,weapons, 1)[0]
+            elementalName = get_close_matches(bonus,bonuses, 1)[0]
         except IndexError:
             weaponName = ''
             elementalName = ''   

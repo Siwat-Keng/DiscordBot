@@ -20,16 +20,6 @@ def set_background_process(bot):
                 bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send(bot.data['arbitration'][bot.data['world_data'].arbitration.getMention()])
             except KeyError:
                 pass
-            
-        if bot.data["world_data"].sentientOutposts.needMention:
-            bot.data["mentioned_sentient"] = await bot.data['channel']['alert'].send(bot.data['Sentient'])
-            bot.data["world_data"].sentientOutposts.needMention = False
-        
-        if bot.data["world_data"].sentientOutposts.currentMission == None:
-            try:
-                await bot.data["mentioned_sentient"].delete()
-            except (KeyError, discord.NotFound):
-                pass
     
         try:
 
@@ -82,10 +72,9 @@ def set_background_process(bot):
     @tasks.loop(seconds=60.0)
     async def memberCycle():
         for member in bot.data['member_join']:
-            
-            guild = await bot.client.fetch_guild(int(bot.data['guild']))
-            role = discord.utils.get(guild.roles, id=int(bot.data['checkedIntro']))
-            vip_role = discord.utils.get(guild.roles, id=int(bot.data['VIP']))
+                        
+            role = discord.utils.get(bot.data['guild'].roles, id=int(bot.data['checkedIntro']))
+            vip_role = discord.utils.get(bot.data['guild'].roles, id=int(bot.data['VIP']))
 
             if role in member.roles or vip_role in member.roles:
                 bot.data['member_join'].remove(member)
@@ -112,7 +101,12 @@ def set_background_process(bot):
     @memberCycle.before_loop
     async def before_memberCycle():
         bot.data['members'] = {}
-        await bot.client.wait_until_ready()        
+        admins = set()
+        await bot.client.wait_until_ready()    
+        bot.data['guild'] = await bot.client.fetch_guild(int(bot.data['guild']))    
+        for admin in bot.data['admins']:
+            admins.add(discord.utils.get(bot.data['guild'].roles, id=int(admin)))
+        bot.data['admins'] = admins
         bot.data['channel']['intro'] = bot.client.get_channel(int(bot.data['channels']['intro']))
         async for message in bot.data['channel']['intro'].history(limit=None):
             stringList = re.split('\n',message.content.strip().replace(':',' '))

@@ -7,38 +7,39 @@ class SentientAnomaly():
     def __init__(self):
         self.currentMission = None
         self.remainingTime = None
-        self.nextArrive = None
-        self.needMention = False
+        self.counter = None
+        self.firstUpdate = True
                 
     def update(self, data):
         currentTime = datetime.now().replace(microsecond=0)
 
-        if self.currentMission != data['mission'] and self.currentMission == None:
-            self.needMention = True
-
         try:
-            self.currentMission = data['mission']['node']
+            if self.firstUpdate and self.currentMission != None and self.currentMission != data['mission']['node']:
+                self.firstUpdate = False
+                
+            if self.currentMission != data['mission']['node']:
+                self.currentMission = data['mission']['node']
+                self.counter = currentTime + timedelta(minutes=30)
+                self.remainingTime = "{} minutes".format((self.counter - currentTime).seconds//60)
+            else:
+                self.remainingTime = "{} minutes".format((self.counter - currentTime).seconds//60)
+                if (self.counter - currentTime).seconds//60 <= 0:
+                    self.remainingTime = "<1 minute"
+
         except (TypeError,KeyError):
-            self.currentMission = None
+            self.currentMission = "Loading..."
+            self.remainingTime = "Loading..."
 
-        self.nextArrive = (datetime.strptime(data['activation'],
-        "%Y-%m-%dT%H:%M:%S.%fZ") + timedelta(hours=7)).strftime("%H:%M")
-
-        if data['active']:
-            remainingTime = (datetime.strptime(data['previous']['expiry'],
-            "%Y-%m-%dT%H:%M:%S.%fZ") - currentTime).seconds//60
-            if remainingTime < 0: remainingTime = '<1 minute'
-            self.remainingTime = "{} minutes".format(remainingTime)
-        else:
-            self.remainingTime = None
+        if self.firstUpdate:
+            self.remainingTime = "Calculating."
 
     def __str__(self):
-        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(self.currentMission,
-        self.remainingTime,self.nextArrive)
+        return "[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}".format(self.currentMission,
+        self.remainingTime)
 
     def __repr__(self):
-        return """[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}\nExpected Next : {}""".format(self.currentMission,
-        self.remainingTime,self.nextArrive)
+        return "[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}".format(self.currentMission,
+        self.remainingTime)
 
 class Arbitration():
     

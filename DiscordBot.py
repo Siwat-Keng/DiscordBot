@@ -16,9 +16,7 @@ class DiscordBot:
     
     
     def __init__(self,location):
-
         self.data = get_data(location)
-        self.data['admins'] = set(self.data['admins'].split())
         self.client = discord.Client()
 
         on_message.set_on_message(self)
@@ -31,5 +29,4 @@ class DiscordBot:
 
 
     def run(self):
-
         self.client.run(self.data['token'])
