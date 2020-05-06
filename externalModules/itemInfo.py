@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from difflib import get_close_matches
-import requests, json
+import requests, json, discord
 
 class MarketItem():
 
@@ -126,16 +126,20 @@ class KuvaWeapon:
 class ItemInfo():
 
     def __init__(self):
-        self.collector = []
         self.url = {}
         self.name = {}
+        self.weapons = {}
+        self.warframe = {}
 
     def update(self):
         try:
-            self.collector = json.loads(requests.get('https://api.warframe.market/v1/items').text)['payload']['items']
-            for item in self.collector:
+            for item in json.loads(requests.get('https://api.warframe.market/v1/items', stream=True).text)['payload']['items']:
                 self.name[item['url_name']] = item['item_name']
                 self.url[item['item_name']] = item['url_name']
+            for weapon in json.loads(requests.get('https://api.warframestat.us/weapons', stream=True).text):
+                self.weapons[weapon['name']] = weapon
+            for warframe in json.loads(requests.get('https://api.warframestat.us/warframes', stream=True).text):
+                self.warframe[warframe['name']] = warframe
             return True
         except:
             return False        
@@ -153,10 +157,46 @@ class ItemInfo():
             return ""
 
     def getInfo(self, name): 
-        info = json.loads(requests.get('https://api.warframe.market/v1/items/' + self.url[name]).text)['payload']['item']['items_in_set']
-        for item in info:
-            if item['en']['item_name'] == name:
-                return item['en']
+        try:
+            targetName = get_close_matches(name,list(self.weapons.keys())+list(self.warframe.keys()),1)[0]
+            if targetName in self.weapons:
+                embed = discord.Embed(title='[Weapon] {}'.format(targetName), url = self.weapons[targetName]['wikiaUrl'], 
+                        description = self.weapons[targetName]['description'], color=0x00ff00)
+                for component in self.weapons[targetName]['components']:
+                    if '/Lotus/Types/Items/MiscItems/' in component['uniqueName']:
+                        continue
+                    dropLists = set()
+                    try:
+                        for drop in component['drops']:
+                            dropLists.add(drop['location'].replace('Radiant','Relic').replace('Intact','Relic').replace('Flawless','Relic').replace('Exceptional','Relic'))
+                        embed.add_field(name='{} [Drop Location]'.format(component['name']),
+                        value=', '.join(dropLists))
+                    except KeyError:
+                        pass
+                embed.set_image(url='https://cdn.warframestat.us/img/{}'.format(self.weapons[targetName]['imageName']))
+            else:
+                embed = discord.Embed(title='[Warframe] {}'.format(targetName), url = self.warframe[targetName]['wikiaUrl'], 
+                        description = self.warframe[targetName]['description'], color=0x00ff00)
+                for component in self.warframe[targetName]['components']:
+                    if '/Lotus/Types/Items/MiscItems/' in component['uniqueName']:
+                        continue
+                    try:
+                        dropLists = set()
+                        for drop in component['drops']:
+                            dropLists.add(drop['location'].replace('Radiant','Relic').replace('Intact','Relic').replace('Flawless','Relic').replace('Exceptional','Relic'))
+                        embed.add_field(name='{} [Drop Location]'.format(component['name']),
+                        value=', '.join(dropLists))
+                    except KeyError:
+                        pass  
+                embed.set_image(url='https://cdn.warframestat.us/img/{}'.format(self.warframe[targetName]['imageName']))
+        except IndexError:
+            info = json.loads(requests.get('https://api.warframe.market/v1/items/' + self.url[self.toName(name)]).text)['payload']['item']['items_in_set'][0]['en']
+            embed = discord.Embed(title=info['item_name'], url = info['wiki_link'], 
+                    description = info['description'], color=0x00ff00)
+            for drop in info['drop']:
+                embed.add_field(name= '[ Drop ]', value = drop['name'])     
+        finally:
+            return embed
 
     def getPrice(self, name):
         output = {}

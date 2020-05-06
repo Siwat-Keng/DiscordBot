@@ -133,17 +133,24 @@ def set_background_process(bot):
             if ['Age', 'Clan', 'Ign', 'Name'] == sorted(list(profile.keys())):
                 bot.data['members'][message.author.id] = profile
 
+    @tasks.loop(seconds=3600.0)
+    async def updateItem():
+        bot.data['itemCollector'].update()
+        
+    @updateItem.before_loop
+    async def before_updateItem():
+        await bot.client.wait_until_ready()  
+        bot.data['itemCollector'] = itemInfo.ItemInfo()
+
     @tasks.loop(seconds=3.0)
     async def updateData():
         bot.data['world_data'].update()
-        bot.data['itemCollector'].update()
         
     @updateData.before_loop
     async def before_updateData():
         await bot.client.wait_until_ready()
         bot.data['member_join'] = []
         bot.data['message_caches'] = {}        
-        bot.data['itemCollector'] = itemInfo.ItemInfo()
         bot.data['world_data'] = worldStat.WorldStat() 
 
     @tasks.loop(seconds=60.0)
@@ -202,4 +209,5 @@ def set_background_process(bot):
     memberCycle.start()
     cycleMessage.start()
     updateDiscordData.start()
+    updateItem.start()
     

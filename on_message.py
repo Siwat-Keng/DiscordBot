@@ -69,7 +69,6 @@ def set_on_message(bot):
                         pass
 
                     embed = discord.Embed(title="Welcome {}".format(profile['Name']), description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
-                    # embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                     value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
@@ -248,12 +247,7 @@ CLAN :```""", inline=False)
                 await message.delete()
 
             elif message.content.startswith('{}info'.format(bot.data['prefix'])):
-                itemName = bot.data['itemCollector'].toName(message.content.replace('{}info'.format(bot.data['prefix']),'').strip().lower())
-                info = bot.data['itemCollector'].getInfo(itemName)
-                embed = discord.Embed(title=itemName, url = info['wiki_link'], 
-                description = info['description'].replace('<p>', '').replace('</p>',''), color=0x00ff00)
-                for drop in info['drop']:
-                    embed.add_field(name= '[ Drop ]', value = drop['name'])
+                embed = bot.data['itemCollector'].getInfo(message.content.replace('{}info'.format(bot.data['prefix']),'').strip())
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                    
                 await message.channel.send(embed=embed)
                 await message.add_reaction("✅")
@@ -308,7 +302,6 @@ CLAN :```""", inline=False)
             elif message.content == "{}help".format(bot.data['prefix']):
                 embed = discord.Embed(title="Greeting {}".format(message.author.name), 
                 description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
-                # embed.add_field(name= "{}sentient".format(bot.data['prefix']), value="บอทจะ tag เมื่อมี sentient anomaly (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
