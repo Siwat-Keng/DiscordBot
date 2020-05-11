@@ -17,14 +17,14 @@ def set_background_process(bot):
             except (UnboundLocalError, discord.NotFound):
                 pass
             try:
-                bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send(bot.data['arbitration'][bot.data['world_data'].arbitration.getMention()])
+                bot.data['message']['arbyMention'] = await bot.data['channels']['alert'].send(bot.data['roles']['arbitration'][bot.data['world_data'].arbitration.getMention()].mention)
             except KeyError:
                 pass
     
         try:
 
-            await bot.data['message']['updateMessage'].edit(content = """```css
-"""+str(bot.data['world_data'].arbitration)+'\n\n'+str(bot.data['world_data'].timeCycle)+'\n\n'+str(bot.data["world_data"].sentientOutposts)+'```')
+            await bot.data['message']['updateMessage'].edit(content = "```css\n{}\n\n{}\n\n{}```".format(bot.data['world_data'].arbitration, 
+            bot.data['world_data'].timeCycle, bot.data["world_data"].sentientOutposts))
 
             if bot.data["world_data"].news.needEdit:
                 embed = discord.Embed.from_dict(bot.data["world_data"].news.getDict())
@@ -35,7 +35,7 @@ def set_background_process(bot):
             
         except discord.NotFound:
             
-            async for message in bot.data['channel']['alert'].history():
+            async for message in bot.data['channels']['alert'].history():
                 await message.delete()
                 
             bot.data['message']['updateMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
@@ -49,40 +49,28 @@ def set_background_process(bot):
 
     @cycleMessage.before_loop
     async def before_cycleMessage():
-
-        bot.data['channel'] = {}
         bot.data['message'] = {}
-
-        await bot.client.wait_until_ready()
-
         game = discord.Game('!help')
+        await bot.client.wait_until_ready()
         await bot.client.change_presence(status=discord.Status.online, activity=game)
-        
-        bot.data['channel']['general'] = bot.client.get_channel(int(bot.data['channels']['general']))
-        bot.data['channel']['alert'] = bot.client.get_channel(int(bot.data['channels']['alert']))
-        
-        async for message in bot.data['channel']['alert'].history():
+        async for message in bot.data['channels']['alert'].history():
             await message.delete()
-        
-        bot.data['message']['updateMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
-        bot.data['message']['embedMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
-        bot.data['message']['arbyMention'] = await bot.data['channel']['alert'].send('```Loading...```')        
+        bot.data['message']['updateMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
+        bot.data['message']['embedMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
+        bot.data['message']['arbyMention'] = await bot.data['channels']['alert'].send('```Loading...```')        
 
 
     @tasks.loop(seconds=60.0)
     async def memberCycle():
         for member in bot.data['member_join']:
-                        
-            role = discord.utils.get(bot.data['guild'].roles, id=int(bot.data['checkedIntro']))
-            vip_role = discord.utils.get(bot.data['guild'].roles, id=int(bot.data['VIP']))
 
-            if role in member.roles or vip_role in member.roles:
+            if bot.data['roles']['checkedIntro'] in member.roles or bot.data['roles']['VIP'] in member.roles:
                 bot.data['member_join'].remove(member)
                 
             elif (datetime.now() - member.joined_at).seconds//60 >= 31 and role not in member.roles:
                 embed = discord.Embed(title="สามารถคลิกที่นี่ เพื่อกลับเข้าสู่ Server อีกครั้ง", 
                 description = 'คุณจะถูกนำออกจาก Server เนื่องจากไม่แนะนำตัว ภายใน 30 นาที', 
-                url = 'https://discordapp.com/invite/j3HMUmW', color=0x00ff00)
+                url = bot.data['invite'], color=0x00ff00)
                 embed.set_image(url="https://cdn.discordapp.com/attachments/633256433512611871/693076211794182226/unknown.png")
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])   
                 try:
@@ -93,70 +81,71 @@ def set_background_process(bot):
                     await member.kick(reason = 'ไม่รายงานตัว')
                 except:
                     pass
-                try:
-                    bot.data['member_join'].remove(member) 
-                except ValueError:
-                    pass 
 
     @memberCycle.before_loop
     async def before_memberCycle():
         bot.data['members'] = {}
-        admins = set()
-        await bot.client.wait_until_ready()    
-        bot.data['guild'] = await bot.client.fetch_guild(int(bot.data['guild']))    
-        for admin in bot.data['admins']:
-            admins.add(discord.utils.get(bot.data['guild'].roles, id=int(admin)))
-        bot.data['admins'] = admins
-        bot.data['channel']['intro'] = bot.client.get_channel(int(bot.data['channels']['intro']))
-        async for message in bot.data['channel']['intro'].history(limit=None):
-            stringList = re.split('\n',message.content.strip().replace(':',' '))
+        await bot.client.wait_until_ready() 
+        async for message in bot.data['channels']['intro'].history(limit=None):
+            regex = re.compile('\s+:*\s*|\s*:+\s*')
             profile = {}
-            for string in stringList:
-                try:
-                    temp = re.search(r'^[^\s]+', string.strip()).group()
-                except AttributeError:
-                    temp = ''
-                try:
-                    key = get_close_matches(temp.capitalize(), ['ชื่อ','อายุ','IGN(ชื่อในเกม)','Clan','Age','Name','Ign'],1)[0]
-                    if key == 'ชื่อ':
-                        key = 'Name'
-                    elif key == 'อายุ':
-                        key = 'Age'
-                    elif key == 'IGN(ชื่อในเกม)':
-                        key = 'Ign'
-                    value = string[len(temp):].strip()
-                    if (value == "" or value == "-") and key != "Clan" and key != "Age":
-                        break
-                    profile[key] = value
-                except IndexError:
-                    pass
-            if ['Age', 'Clan', 'Ign', 'Name'] == sorted(list(profile.keys())):
+            for line in message.content.split('\n'):
+                splitedList = regex.split(line)
+                key = get_close_matches(splitedList[0].title(), 
+                {'ชื่อ','อายุ','Ign','Clan','Age','Name','Ign(ชื่อในเกม)'}, 1)
+                if not key:
+                    continue
+                profile[key[0].replace('(ชื่อในเกม)', 
+                '').replace('ชื่อ', 'Name').replace('อายุ', 
+                'Age')] = ' '.join(splitedList[1:])
+            if len(profile) == 4 and profile['Name'] and profile['Ign']:
                 bot.data['members'][message.author.id] = profile
 
     @tasks.loop(seconds=3600.0)
     async def updateItem():
-        bot.data['itemCollector'].update()
+        try:
+            await bot.data['itemCollector'].update()
+        except:
+            print("Update Failed:", sys.exc_info())        
         
     @updateItem.before_loop
     async def before_updateItem():
-        await bot.client.wait_until_ready()  
         bot.data['itemCollector'] = itemInfo.ItemInfo()
-
+        await bot.client.wait_until_ready()  
+        
     @tasks.loop(seconds=3.0)
     async def updateData():
-        bot.data['world_data'].update()
+        try:
+            await bot.data['world_data'].update()
+        except:
+            print("Update Failed:", sys.exc_info())
         
     @updateData.before_loop
     async def before_updateData():
-        await bot.client.wait_until_ready()
         bot.data['member_join'] = []
         bot.data['message_caches'] = {}        
-        bot.data['world_data'] = worldStat.WorldStat() 
+        bot.data['world_data'] = worldStat.WorldStat()        
+        await bot.client.wait_until_ready()
+        bot.data['guild'] = bot.client.get_guild(bot.data['guild'])
+        for channel in bot.data['channels']:
+            bot.data['channels'][channel] = bot.client.get_channel(bot.data['channels'][channel])
+        for role in bot.data['roles']:
+            if role == 'arbitration':
+                for arbi in bot.data['roles']['arbitration']:
+                    bot.data['roles']['arbitration'][arbi] = discord.utils.get(bot.data['guild'].roles, 
+                    id=bot.data['roles']['arbitration'][arbi])
+            elif role == 'admins':
+                for index, admin in enumerate(bot.data['roles']['admins']):
+                    bot.data['roles']['admins'][index] = discord.utils.get(bot.data['guild'].roles, id=admin)  
+            else:
+                bot.data['roles'][role] = discord.utils.get(bot.data['guild'].roles, 
+                id=bot.data['roles'][role])     
+         
 
     @tasks.loop(seconds=60.0)
     async def updateDiscordData():
         temp = set()
-        async for message in bot.data['channel']['ally'].history(limit=None):
+        async for message in bot.data['channels']['ally'].history(limit=None):
             mes = message.content.split('\n')
             for m in mes:
                 try:
@@ -172,13 +161,11 @@ def set_background_process(bot):
 
     @updateDiscordData.before_loop
     async def before_updateDiscordData():
-        await bot.client.wait_until_ready()
-        bot.data['channel']['ally'] = bot.client.get_channel(int(bot.data['channels']['ally']))
-        bot.data['channel']['build'] = bot.client.get_channel(int(bot.data['channels']['build']))
         bot.data['ally'] = set()
-        bot.data['build'] = {}
-        async for message in bot.data['channel']['build'].history(limit=None):
-            stringList = re.split('\n',message.content.strip().replace(':',' '))
+        bot.data['build'] = {}        
+        await bot.client.wait_until_ready()
+        async for message in bot.data['channels']['build'].history(limit=None):
+            stringList = message.content.split('\n')
             profile = {}
             for string in stringList:
                 try:

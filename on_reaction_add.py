@@ -1,5 +1,5 @@
 import discord
-from externalModules.Container import PartyContainer, MarketRankContainer, MarketContainer
+from externalModules.Container import *
 
 def set_on_reaction_add(bot):
     
@@ -42,13 +42,32 @@ def set_on_reaction_add(bot):
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
                         await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'], 4)                  
 
-
                 elif reaction.emoji == "🚩":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer) and user == bot.data['message_caches'][reaction.message.id].leader:
                         bot.data['message_caches'][await bot.data['message_caches'][reaction.message.id].refresh()] = bot.data['message_caches'][reaction.message.id]
                         del bot.data['message_caches'][reaction.message.id]
                     elif isinstance(bot.data['message_caches'][reaction.message.id], MarketContainer) or isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
                         await bot.data['message_caches'][reaction.message.id].refresh()
+                
+                elif reaction.emoji == "🇱":
+                    if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
+                        await bot.data['message_caches'][reaction.message.id].setLith()
+                elif reaction.emoji == "🇲":
+                    if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
+                        await bot.data['message_caches'][reaction.message.id].setMeso()
+
+                elif reaction.emoji == "🇳":
+                    if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
+                        await bot.data['message_caches'][reaction.message.id].setNeo()
+
+                elif reaction.emoji == "🇦":
+                    if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
+                        await bot.data['message_caches'][reaction.message.id].setAxi()
+
+                elif reaction.emoji == "🇷":    
+                    if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
+                        await bot.data['message_caches'][reaction.message.id].setReq()                
+
 
         except Exception as err:
             print('Error on reaction : {}'.format(err))

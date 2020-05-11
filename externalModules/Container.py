@@ -1,4 +1,4 @@
-import discord
+import discord, concurrent.futures, re
 
 class PartyContainer:
 
@@ -131,7 +131,7 @@ class MarketRankContainer:
         await self.message.edit(embed=embed)
 
     async def refresh(self):
-        self.market = self.itemInfo.getPrice(self.itemName)
+        self.market = await self.itemInfo.getPrice(self.itemName)       
         embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
         for index, item in enumerate(self.market[self.type][self.currentRank]):
             if index >= 5:
@@ -164,7 +164,7 @@ class MarketContainer:
         self.footer = footer
 
     async def refresh(self):
-        self.market = self.itemInfo.getPrice(self.itemName)
+        self.market = await self.itemInfo.getPrice(self.itemName)        
         embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
         for index, item in enumerate(self.market[self.type][0]):
             if index >= 5:
@@ -182,3 +182,71 @@ class MarketContainer:
         embed.set_footer(text=self.footer, icon_url=self.icon) 
         await self.message.edit(content = None, embed=embed)     
         await self.message.add_reaction("🚩")
+
+class FissureContainer:
+
+    def __init__(self, message, icon, footer, fissures):      
+        self.message = message
+        self.fissures = fissures
+        self.icon = icon    
+        self.footer = footer    
+        self.regex = re.compile('\s*\d+[s]')
+    
+    async def setMessage(self):
+        embed = discord.Embed(title="Lith Missions", color=0x00ff00)
+        for mission in self.fissures.lith:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)     
+        await self.message.add_reaction("🇱")     
+        await self.message.add_reaction("🇲")
+        await self.message.add_reaction("🇳")
+        await self.message.add_reaction("🇦")
+        await self.message.add_reaction("🇷")
+
+    async def setLith(self):
+        embed = discord.Embed(title="Lith Missions", color=0x00ff00)
+        for mission in self.fissures.lith:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)  
+
+    async def setMeso(self):
+        embed = discord.Embed(title="Meso Missions", color=0x00ff00)
+        for mission in self.fissures.meso:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)        
+
+    async def setNeo(self):
+        embed = discord.Embed(title="Neo Missions", color=0x00ff00)
+        for mission in self.fissures.neo:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)
+
+    async def setAxi(self):
+        embed = discord.Embed(title="Axi Missions", color=0x00ff00)
+        for mission in self.fissures.axi:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)
+
+    async def setReq(self):
+        embed = discord.Embed(title="Requiem Missions", color=0x00ff00)
+        for mission in self.fissures.req:
+            embed.add_field(name='Available : {}'.format(self.regex.sub('', mission['eta']))
+            , value='[{}] {}'.format(mission['missionType'], 
+            mission['node']), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        await self.message.edit(content=None, embed=embed)                        

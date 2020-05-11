@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from difflib import get_close_matches
-import requests, json, discord
+import aiohttp, discord, json
 
 class MarketItem():
 
@@ -131,15 +131,25 @@ class ItemInfo():
         self.weapons = {}
         self.warframe = {}
 
-    def update(self):
+    async def update(self):
         try:
-            for item in json.loads(requests.get('https://api.warframe.market/v1/items', stream=True).text)['payload']['items']:
-                self.name[item['url_name']] = item['item_name']
-                self.url[item['item_name']] = item['url_name']
-            for weapon in json.loads(requests.get('https://api.warframestat.us/weapons', stream=True).text):
-                self.weapons[weapon['name']] = weapon
-            for warframe in json.loads(requests.get('https://api.warframestat.us/warframes', stream=True).text):
-                self.warframe[warframe['name']] = warframe
+            async with aiohttp.ClientSession() as session:
+                async with session.get('https://api.warframe.market/v1/items') as request1:
+                    if request1.status == 200:
+                        items = await request1.json()            
+                        for item in items['payload']['items']:
+                            self.name[item['url_name']] = item['item_name']
+                            self.url[item['item_name']] = item['url_name']
+                async with session.get('https://api.warframestat.us/weapons') as request2:
+                        if request2.status == 200:
+                            weapons = await request2.json()                            
+                            for weapon in weapons:
+                                self.weapons[weapon['name']] = weapon
+                async with session.get('https://api.warframestat.us/warframes') as request3:
+                        if request3.status == 200:
+                            warframes = await request3.json()                                 
+                            for warframe in warframes:
+                                self.warframe[warframe['name']] = warframe
             return True
         except:
             return False        
@@ -148,15 +158,15 @@ class ItemInfo():
         try:
             return self.url[get_close_matches(name,self.url.keys(),1,0.5)[0]]
         except IndexError:
-            return ""
+            raise KeyError
 
     def toName(self, url):
         try:
             return self.name[get_close_matches(url,self.name.keys(),1,0.5)[0]]
         except IndexError:
-            return ""
+            raise KeyError
 
-    def getInfo(self, name): 
+    async def getInfo(self, name): 
         try:
             targetName = get_close_matches(name,list(self.weapons.keys())+list(self.warframe.keys()),1)[0]
             if targetName in self.weapons:
@@ -190,83 +200,101 @@ class ItemInfo():
                         pass  
                 embed.set_image(url='https://cdn.warframestat.us/img/{}'.format(self.warframe[targetName]['imageName']))
         except IndexError:
-            info = json.loads(requests.get('https://api.warframe.market/v1/items/' + self.url[self.toName(name)]).text)['payload']['item']['items_in_set'][0]['en']
-            embed = discord.Embed(title=info['item_name'], url = info['wiki_link'], 
-                    description = info['description'], color=0x00ff00)
-            for drop in info['drop']:
-                embed.add_field(name= '[ Drop ]', value = drop['name'])     
+            async with aiohttp.ClientSession() as session:
+                async with session.get('https://api.warframe.market/v1/items/' + self.url[self.toName(name)]) as request:
+                    if request.status == 200:
+                        items = await request.json()    
+                        info = items['payload']['item']['items_in_set'][0]['en']        
+                        embed = discord.Embed(title=info['item_name'], url = info['wiki_link'], 
+                                description = info['description'], color=0x00ff00)
+                        for drop in info['drop']:
+                            embed.add_field(name= '[ Drop ]', value = drop['name'])  
+                    else:
+                        raise NameError   
         finally:
             return embed
 
-    def getPrice(self, name):
+    async def getPrice(self, name):
         output = {}
         output['buy'] = [[] for i in range(11)]
         output['sell'] = [[] for i in range(11)]          
         output['url'] = 'https://warframe.market/items/' + self.url[name]
         output['itemName'] = name
         maximum = -1
+        async with aiohttp.ClientSession() as session:
+            request = await session.get(output['url'])
+            if request.status == 200:
+                text = await request.read()
+                for order in json.loads(BeautifulSoup(text, 
+                "html.parser").find('script', id='application-state').contents[0])['payload']['orders']:
+                    if(order['user']['status'] == 'ingame'):
+                        if(order['order_type'] == 'buy'):
+                            if 'mod_rank' in order:
+                                output['buy'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
+                                if order['mod_rank'] > maximum:
+                                    maximum = order['mod_rank']
+                            else:
+                                output['buy'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                        else:
+                            if 'mod_rank' in order:             
+                                output['sell'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
+                                if order['mod_rank'] > maximum:
+                                    maximum = order['mod_rank']                                             
+                            else:
+                                output['sell'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
 
-        for order in json.loads(BeautifulSoup(requests.get(output['url']).text, "html.parser").find('script', 
-        id='application-state').contents[0])['payload']['orders']:
-            if(order['user']['status'] == 'ingame'):
-                if(order['order_type'] == 'buy'):
-                    if 'mod_rank' in order:
-                        output['buy'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
-                        if order['mod_rank'] > maximum:
-                            maximum = order['mod_rank']
-                    else:
-                        output['buy'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                if maximum > -1:
+                    output['hasRank'] = True
                 else:
-                    if 'mod_rank' in order:             
-                        output['sell'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
-                        if order['mod_rank'] > maximum:
-                            maximum = order['mod_rank']                                             
-                    else:
-                        output['sell'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                    output['hasRank'] = False
+                output['maxRank'] = maximum
+                for items in output['buy']:
+                    items.sort(reverse=True)
+                for items in output['sell']:
+                    items.sort()          
+                return output
 
-        if maximum > -1:
-            output['hasRank'] = True
-        else:
-            output['hasRank'] = False
-        output['maxRank'] = maximum
-        for items in output['buy']:
-            items.sort(reverse=True)
-        for items in output['sell']:
-            items.sort()          
+            else:
+                raise NameError
 
-        return output  
 
-    def getKuvaWeaponPrice(self, name, bonus):
+    async def getKuvaWeaponPrice(self, name, bonus):
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://www.warframeteams.com/index.php') as request:
+                if request.status == 200:
+                    text = await request.read()
+                    raw_data = BeautifulSoup(text, "html.parser")
+                    data = raw_data.find_all('tr')
+                    sector_data = raw_data.findAll("div", {"class": "wfmain"})
+                    raw_weapon = sector_data[0]
+                    raw_bonus = sector_data[1]
+                    weapons = []
+                    bonuses = []
+                    for w in raw_weapon.findAll("form", {"class": "warframesmainform"}):
+                        weapons.append(w.find("input")['value'])
 
-        raw_data = BeautifulSoup(requests.get('https://www.warframeteams.com/index.php').text, "html.parser")
-        data = raw_data.find_all('tr')
-        sector_data = raw_data.findAll("div", {"class": "wfmain"})
-        raw_weapon = sector_data[0]
-        raw_bonus = sector_data[1]
-        weapons = []
-        bonuses = []
-        for w in raw_weapon.findAll("form", {"class": "warframesmainform"}):
-            weapons.append(w.find("input")['value'])
+                    for w in raw_bonus.findAll("form", {"class": "warframesmainform"}):
+                        bonuses.append(w.find("input")['value'])
+                    try:
+                        weaponName = get_close_matches(name,weapons, 1)[0]
+                        elementalName = get_close_matches(bonus,bonuses, 1)[0]
+                    except IndexError:
+                        weaponName = ''
+                        elementalName = ''   
+                    try:
+                        key = data[0].get_text().strip('\n').split('\n')
+                        result = {}
+                        for i in data[1:]:
+                            info = i.get_text().strip('\n').split('\n')
+                            if len(info) != len(key):
+                                continue
+                            if info[2] not in result and info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
+                                result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
+                            elif info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
+                                result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))  
+                        return (weaponName, sorted(result[weaponName]))
+                    except KeyError:
+                        return (weaponName, {})
 
-        for w in raw_bonus.findAll("form", {"class": "warframesmainform"}):
-            bonuses.append(w.find("input")['value'])
-        try:
-            weaponName = get_close_matches(name,weapons, 1)[0]
-            elementalName = get_close_matches(bonus,bonuses, 1)[0]
-        except IndexError:
-            weaponName = ''
-            elementalName = ''   
-        try:
-            key = data[0].get_text().strip('\n').split('\n')
-            result = {}
-            for i in data[1:]:
-                info = i.get_text().strip('\n').split('\n')
-                if len(info) != len(key):
-                    continue
-                if info[2] not in result and info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
-                    result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
-                elif info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
-                    result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))  
-            return (weaponName, sorted(result[weaponName]))
-        except KeyError:
-            return (weaponName, {})
+                else:
+                    raise NameError

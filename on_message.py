@@ -1,8 +1,10 @@
-import discord, asyncio, json, re
+import discord, json, re
 from difflib import get_close_matches
 from datetime import datetime, timedelta
 from externalModules import itemInfo
-from externalModules.Container import PartyContainer, MarketRankContainer, MarketContainer
+from externalModules.Container import *
+
+COMMANDS = {'info','arbitration','price','help','build','kuva','party', 'fissure'}
 
 def set_on_message(bot):
 
@@ -12,57 +14,37 @@ def set_on_message(bot):
         try:
             
             if message.author.bot:
-                if message.author.id == 602322701146914829:
+                if message.author == bot.client.user or message.mention_everyone or message.channel.guild != bot.data['guild']:
                     return
-                if message.channel.id not in {int(bot.data['channels']['botcommands']), 592192367663251466}:
+                if message.channel != bot.data['channels']['botcommands']:
                     embed = message.embeds
                     files = []
                     for att in message.attachments:
                         files.append(await att.to_file())
-                    if message.mention_everyone:
-                        try:
-                            await message.channel.send(content=message.content, embed=embed[0], files=files)
-                        except IndexError:
-                            await message.channel.send(content=message.content, files=files)
-                    else:
-                        try:
-                            await message.channel.send(content=message.content, embed=embed[0], files=files, delete_after = 1800.0)
-                        except IndexError:
-                            await message.channel.send(content=message.content, files=files, delete_after = 1800.0)
+                    try:
+                        await message.channel.send(content=message.content, embed=embed[0], files=files, delete_after = 1800.0)
+                    except IndexError:
+                        await message.channel.send(content=message.content, files=files, delete_after = 1800.0)
                     await message.delete()
                 return
 
-            if message.channel == bot.data['channel']['intro']:
-                stringList = re.split('\n',message.content.strip().replace(':',' '))
+            if message.channel == bot.data['channels']['intro']:
+                regex = re.compile('\s+:*\s*|\s*:+\s*')
                 profile = {}
-                for string in stringList:
-                    try:
-                        temp = re.search(r'^[^\s]+', string.strip()).group()
-                    except AttributeError:
-                        temp = ''
-                    try:
-                        key = get_close_matches(temp.capitalize(), ['ชื่อ','อายุ','IGN(ชื่อในเกม)','Clan','Age','Name','Ign'],1)[0]
-                        if key == 'ชื่อ':
-                            key = 'Name'
-                        elif key == 'อายุ':
-                            key = 'Age'
-                        elif key == 'IGN(ชื่อในเกม)':
-                            key = 'Ign'
-                        value = string[len(temp):].strip()
-                        if (value == "" or value == "-") and key != "Clan" and key != "Age":
-                            break
-                        profile[key] = value
-                    except IndexError:
-                        pass
-
-                if ['Age', 'Clan', 'Ign', 'Name'] == sorted(list(profile.keys())):
-                    checkedIntro = discord.utils.get(message.guild.roles, id=int(bot.data['checkedIntro']))
-                    waitingIntro = discord.utils.get(message.guild.roles, id=int(bot.data['waitingIntro']))
-                    await message.author.add_roles(checkedIntro)
-                    await message.author.remove_roles(waitingIntro)
+                for line in message.content.split('\n'):
+                    splitedList = regex.split(line)
+                    key = get_close_matches(splitedList[0].title(), 
+                    {'ชื่อ','อายุ','Ign','Clan','Age','Name','Ign(ชื่อในเกม)'}, 1)
+                    if not key:
+                        continue
+                    profile[key[0].replace('(ชื่อในเกม)', 
+                    '').replace('ชื่อ', 'Name').replace('อายุ', 
+                    'Age')] = ' '.join(splitedList[1:])
+                if len(profile) == 4 and profile['Name'] and profile['Ign']:
+                    await message.author.add_roles(bot.data['roles']['checkedIntro'])
+                    await message.author.remove_roles(bot.data['roles']['waitingIntro'])
                     bot.data['members'][message.author.id] = profile  
                     await message.add_reaction("✅")
-
                     try:
                         await message.author.edit(nick="{}[{}][{}]".format(profile['Ign'],profile['Name'],profile['Age']))
                     except:
@@ -76,19 +58,21 @@ def set_on_message(bot):
                     embed.add_field(name= "{}build <item name>".format(bot.data['prefix']), value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
                     embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                     embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
+                    embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
                     embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
                     try:
                         get_close_matches(profile['Clan'],bot.data['ally'],n=1,cutoff=0.8)[0]
-                        allyRole = discord.utils.get(message.guild.roles, id=int(bot.data['checkedAlly']))
-                        await message.author.add_roles(allyRole)
+                        await message.author.add_roles(bot.data['roles']['checkedAlly'])
                     except IndexError:
                         pass
                     finally:
                         return
                 else:
                     await message.add_reaction("❌")
-                    embed = discord.Embed(title="Hello {}".format(message.author.name), description = 'แนะนำตัวใหม่ในห้อง welcome_room ตามรูปแบบที่กำหนดนะครับ', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+                    embed = discord.Embed(title="Hello {}".format(message.author.name), 
+                    description = 'แนะนำตัวใหม่ในห้อง welcome_room ภายใน {} นาที ตามรูปแบบที่กำหนดนะครับ'.format((message.author.joined_at-datetime.now()+timedelta(minutes=30)).seconds//60), 
+                    url = bot.data['url'], color=0x00ff00)
                     embed.add_field(name='ถ้าไม่ต้องการใส่อายุ หรือ Clan สามารถใส่เป็น - ได้', value="""```ชื่อ :
 อายุ :
 IGN(ชื่อในเกม) :
@@ -102,7 +86,7 @@ CLAN :```""", inline=False)
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    
 
-            if str(message.channel.id) == bot.data['channels']['clan'] and len(set(message.author.roles) & bot.data['admins']) != 0:
+            if message.channel == bot.data['channels']['clan'] and (set(message.author.roles) & bot.data['admins']):
                 currentTime = (datetime.now() + timedelta(hours=7)).ctime()
                 if message.mention_everyone:   
                     mes = ['']*2
@@ -155,7 +139,7 @@ CLAN :```""", inline=False)
                     await message.add_reaction("✅")                
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
-            if message.channel == bot.data['channel']['build']:
+            if message.channel == bot.data['channels']['build']:
                 stringList = re.split('\n',message.content.strip().replace(':',' '))
                 profile = {}
                 for string in stringList:
@@ -202,14 +186,20 @@ CLAN :```""", inline=False)
                 return        
             
 #--------------------------------------------------------------------------------------------------------
-            if message.channel.id != int(bot.data['channels']['botcommands']):
+            if message.channel != bot.data['channels']['botcommands']:
                 return
 
             if message.content.startswith('{}price'.format(bot.data['prefix'])):
-                itemName = bot.data['itemCollector'].toName(message.content.replace('!price','').strip().lower())
-                market = bot.data['itemCollector'].getPrice(itemName)
                 buyMessage = await message.channel.send('```Loading...```', delete_after=300)
-                sellMessage = await message.channel.send('```Loading...```', delete_after=300)                
+                sellMessage = await message.channel.send('```Loading...```', delete_after=300)
+                try:
+                    itemName = bot.data['itemCollector'].toName(message.content.replace('!price','').strip().lower())
+                except KeyError:
+                    await buyMessage.delete()
+                    await sellMessage.delete()
+                    await message.add_reaction("❌")
+                    return
+                market = await bot.data['itemCollector'].getPrice(itemName)
                 if market['hasRank']:
                     bot.data['message_caches'][buyMessage.id] = MarketRankContainer(market, 'sell', buyMessage, bot.data['itemCollector'], bot.data['icon'])
                     bot.data['message_caches'][sellMessage.id] = MarketRankContainer(market, 'buy', sellMessage, bot.data['itemCollector'], bot.data['icon'])
@@ -222,8 +212,8 @@ CLAN :```""", inline=False)
 
             elif message.content.startswith('{}arbitration'.format(bot.data['prefix'])):
                 target = message.content.replace('{}arbitration'.format(bot.data['prefix']),'')
-                roleName = get_close_matches(target.lower(), bot.data['arbitration'].keys(), 1)[0]
-                role = discord.utils.get(message.guild.roles, name=roleName)
+                roleName = get_close_matches(target.lower(), bot.data['roles']['arbitration'].keys(), 1)[0]
+                role = bot.data['roles']['arbitration'][roleName]
                 if role in message.author.roles:
                     await message.author.remove_roles(role)
                 else:
@@ -247,7 +237,7 @@ CLAN :```""", inline=False)
                 await message.delete()
 
             elif message.content.startswith('{}info'.format(bot.data['prefix'])):
-                embed = bot.data['itemCollector'].getInfo(message.content.replace('{}info'.format(bot.data['prefix']),'').strip())
+                embed = await bot.data['itemCollector'].getInfo(message.content.replace('{}info'.format(bot.data['prefix']),'').strip())
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                    
                 await message.channel.send(embed=embed)
                 await message.add_reaction("✅")
@@ -259,7 +249,7 @@ CLAN :```""", inline=False)
                     return
                 weaponName = ' '.join(temp[:len(temp)-1])
                 elemental = temp[len(temp)-1]            
-                weaponName, weaponList = bot.data['itemCollector'].getKuvaWeaponPrice(weaponName, elemental)
+                weaponName, weaponList = await bot.data['itemCollector'].getKuvaWeaponPrice(weaponName, elemental)
                 embed = discord.Embed(title='Kuva {} Sellers'.format(weaponName), 
                 url = 'https://www.warframeteams.com/index.php', color=0x00ff00)
                 for item in weaponList:
@@ -268,12 +258,11 @@ CLAN :```""", inline=False)
                 await message.channel.send(embed=embed, delete_after=300)
                 await message.add_reaction("✅")
 
-            elif message.content == "{}sentient".format(bot.data['prefix']):
-                role = discord.utils.get(message.guild.roles, name="Sentient")
-                if role in message.author.roles:
-                    await message.author.remove_roles(role)
-                else:
-                    await message.author.add_roles(role)
+            elif message.content == "{}fissure".format(bot.data['prefix']):
+                fissureMessage = await message.channel.send('```Loading...```', delete_after=300)
+                bot.data['message_caches'][fissureMessage.id] = FissureContainer(fissureMessage, 
+                bot.data['icon'], bot.data['footer'], bot.data['world_data'].fissures)
+                await bot.data['message_caches'][fissureMessage.id].setMessage()
                 await message.add_reaction("✅")
             
             elif message.content.startswith("{}party".format(bot.data['prefix'])):
@@ -284,7 +273,7 @@ CLAN :```""", inline=False)
                 inline=False)
                 embed.set_image(url="https://cdn.discordapp.com/attachments/633256433512611871/692296672818233394/c05a0897365521040712bde69e3bc819.jpg")
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
-                partyMessage = await bot.data['channel']['general'].send(embed=embed, delete_after=1800)
+                partyMessage = await bot.data['channels']['general'].send(embed=embed, delete_after=1800)
                 await partyMessage.add_reaction("👍")
                 await partyMessage.add_reaction("👎")
                 await partyMessage.add_reaction("1️⃣")
@@ -295,13 +284,13 @@ CLAN :```""", inline=False)
                 bot.data['message_caches'][partyMessage.id] = PartyContainer(partyMessage, embed, target, message.author)      
                 bot.data['message_caches'][partyMessage.id].setFooterText(bot.data['footer'])      
                 bot.data['message_caches'][partyMessage.id].setIcon(bot.data['icon'])
-                bot.data['message_caches'][partyMessage.id].setIntroChannel(bot.data['channel']['intro'])
+                bot.data['message_caches'][partyMessage.id].setIntroChannel(bot.data['channels']['intro'])
                 bot.data['message_caches'][partyMessage.id].setUrl("https://cdn.discordapp.com/attachments/633256433512611871/692296672818233394/c05a0897365521040712bde69e3bc819.jpg")
                 await message.add_reaction("✅")
 
             elif message.content == "{}help".format(bot.data['prefix']):
                 embed = discord.Embed(title="Greeting {}".format(message.author.name), 
-                description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+                description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = bot.data['url'], color=0x00ff00)
                 embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
@@ -309,13 +298,14 @@ CLAN :```""", inline=False)
                 embed.add_field(name= "{}build <item name>".format(bot.data['prefix']), value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
                 embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                 embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
+                embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
                 await message.author.send(embed=embed)                
                 await message.add_reaction("✅")    
 
             elif message.content.startswith('{}'.format(bot.data['prefix'])):
                 command = message.content[1:].split()[0]
-                predicted = get_close_matches(command, ['info','arbitration','price','help','build','kuva','party'],len(['sentient','info','arbitration','price','help','build','kuva','party']))
+                predicted = get_close_matches(command, COMMANDS, len(COMMANDS))
                 if len(predicted) > 0:
                     embed = discord.Embed(title='The most similar commands', 
                     description = 'คำสั่ง {}{} ไม่มีในระบบ คำสั่งที่คล้าย ได้แก่'.format(bot.data['prefix'],command), color=0x00ff00)

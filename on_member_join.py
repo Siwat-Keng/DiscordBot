@@ -6,7 +6,7 @@ def set_on_member_join(bot):
     @bot.client.event
     async def on_member_join(member):
 
-        if member.guild.id != bot.data['guild'].id:
+        if member.guild != bot.data['guild']:
             return
         
         try:

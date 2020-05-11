@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from difflib import get_close_matches
-import requests, json, re
+import aiohttp, re
 
-class SentientAnomaly():
+class SentientAnomaly:
 
     def __init__(self):
         self.currentMission = None
@@ -41,7 +41,7 @@ class SentientAnomaly():
         return "[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}".format(self.currentMission,
         self.remainingTime)
 
-class Arbitration():
+class Arbitration:
     
     def __init__(self):
         self.prevArbitration = None
@@ -91,7 +91,7 @@ class Arbitration():
         return """[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}""".format(str(self.currentMission['node']),
         self.remainingTime, str(self.currentMission['enemy']), str(self.currentMission['type']).replace("Dark Sector ",""))
 
-class TimeCycle():
+class TimeCycle:
 
     def __init__(self):
         self.cetusState = None
@@ -100,14 +100,15 @@ class TimeCycle():
         self.earthTime = None
         self.vallisState = None
         self.vallisTime = None
+        self.regex = re.compile('\s*\d+[s]')
 
     def update(self, cetus, earth, vallis):
         self.cetusState = cetus['state'].capitalize()
-        self.cetusTime = re.sub(r'\d+[s]', '', cetus['timeLeft']).strip()                   
+        self.cetusTime = self.regex.sub('', cetus['timeLeft'])                  
         self.earthState = earth['state'].capitalize()
-        self.earthTime = re.sub(r'\d+[s]', '', earth['timeLeft']).strip()
+        self.earthTime = self.regex.sub('', earth['timeLeft'])
         self.vallisState = vallis['state'].capitalize()
-        self.vallisTime = re.sub(r'\d+[s]', '', vallis['timeLeft']).strip()
+        self.vallisTime = self.regex.sub('', vallis['timeLeft'])
         if self.cetusTime == '':
             self.cetusTime = '<1m'
         if self.earthTime == '':
@@ -123,7 +124,7 @@ class TimeCycle():
         return """[ Time Cycle ]\nEarth : {} (Available : {})\nCetus : {} (Available : {})\nFortuna : {} (Available : {})""".format(self.earthState,
         self.earthTime, self.cetusState, self.cetusTime, self.vallisState, self.vallisTime)
 
-class News():
+class News:
 
     def __init__(self):
         self.name = None
@@ -148,27 +149,44 @@ class News():
     def getDict(self):
         self.needEdit = False
         return {'title':"[PC] Latest Warframe News", 'description':'{} [{}]'.format(self.name, self.eta), 'url':self.url, 'color':0x00ff00}
+
+class Fissures:
+
+    def __init__(self):
+        self.lith = []
+        self.meso = []
+        self.neo = []
+        self.req = []
+
+    def update(self, fissures):
+        self.lith = list(filter(lambda mission: mission['tierNum'] == 1, fissures))
+        self.meso = list(filter(lambda mission: mission['tierNum'] == 2, fissures))
+        self.neo = list(filter(lambda mission: mission['tierNum'] == 3, fissures))
+        self.axi = list(filter(lambda mission: mission['tierNum'] == 4, fissures))
+        self.req = list(filter(lambda mission: mission['tierNum'] == 5, fissures))
     
 
-class WorldStat():
+class WorldStat:
 
     def __init__(self):
         self.sentientOutposts = SentientAnomaly()
         self.timeCycle = TimeCycle() 
         self.arbitration = Arbitration()
         self.news = News()    
+        self.fissures = Fissures()
         
-    def update(self):
-        try:
-            temp = json.loads(requests.get('https://api.warframestat.us/pc').text)
-            
-            self.sentientOutposts.update(temp['sentientOutposts'])
-            self.timeCycle.update(temp['cetusCycle'], temp['earthCycle'], temp['vallisCycle'])
-            self.arbitration.update(temp['arbitration'])
-            
-            for index in range(len(temp['news'])-1,-1,-1):
-                if 'en' in temp['news'][index]['translations']:
-                    self.news.update(temp['news'][index])
-                    break
-        except:
-            pass
+    async def update(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://api.warframestat.us/pc') as request:
+                if request.status == 200:
+                    worldStat = await request.json()
+                    self.sentientOutposts.update(worldStat['sentientOutposts'])
+                    self.timeCycle.update(worldStat['cetusCycle'], 
+                    worldStat['earthCycle'], worldStat['vallisCycle'])
+                    self.arbitration.update(worldStat['arbitration'])
+                    self.fissures.update(worldStat['fissures'])
+        
+                    for index in range(len(worldStat['news'])-1,-1,-1):
+                        if 'en' in worldStat['news'][index]['translations']:
+                            self.news.update(worldStat['news'][index])
+                            break
