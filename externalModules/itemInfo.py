@@ -1,6 +1,10 @@
 from bs4 import BeautifulSoup
 from difflib import get_close_matches
-import aiohttp, discord, json
+import aiohttp, discord, json, concurrent.futures
+
+async def loads(text):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return executor.submit(json.loads, text).result()
 
 class MarketItem():
 
@@ -210,7 +214,7 @@ class ItemInfo():
                         for drop in info['drop']:
                             embed.add_field(name= '[ Drop ]', value = drop['name'])  
                     else:
-                        raise NameError   
+                        raise ConnectionError   
         finally:
             return embed
 
@@ -225,8 +229,9 @@ class ItemInfo():
             request = await session.get(output['url'])
             if request.status == 200:
                 text = await request.read()
-                for order in json.loads(BeautifulSoup(text, 
-                "html.parser").find('script', id='application-state').contents[0])['payload']['orders']:
+                soup = BeautifulSoup(text, "html.parser").find('script', id='application-state').contents[0]
+                json = await loads(soup)
+                for order in json['payload']['orders']:
                     if(order['user']['status'] == 'ingame'):
                         if(order['order_type'] == 'buy'):
                             if 'mod_rank' in order:
@@ -255,12 +260,13 @@ class ItemInfo():
                 return output
 
             else:
-                raise NameError
+                raise ConnectionError
 
 
     async def getKuvaWeaponPrice(self, name, bonus):
         async with aiohttp.ClientSession() as session:
             async with session.get('https://www.warframeteams.com/index.php') as request:
+                text = await request.read()
                 if request.status == 200:
                     text = await request.read()
                     raw_data = BeautifulSoup(text, "html.parser")
@@ -297,4 +303,4 @@ class ItemInfo():
                         return (weaponName, {})
 
                 else:
-                    raise NameError
+                    raise ConnectionError

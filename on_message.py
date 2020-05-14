@@ -1,10 +1,9 @@
-import discord, json, re
+import discord, re
 from difflib import get_close_matches
 from datetime import datetime, timedelta
-from externalModules import itemInfo
 from externalModules.Container import *
 
-COMMANDS = {'info','arbitration','price','help','build','kuva','party', 'fissure'}
+COMMANDS = {'info','arbitration','price','help','kuva','party', 'fissure', 'build'}
 
 def set_on_message(bot):
 
@@ -55,19 +54,17 @@ def set_on_message(bot):
                     value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                     embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
                     embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
-                    embed.add_field(name= "{}build <item name>".format(bot.data['prefix']), value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
                     embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                     embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
                     embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
+                    embed.add_field(name= "{}build", value="บอทจะทำการ search build จาก overframe.gg", inline=False)
                     embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
                     try:
-                        get_close_matches(profile['Clan'],bot.data['ally'],n=1,cutoff=0.8)[0]
+                        get_close_matches(profile['Clan'],bot.data['ally'].keys(),n=1,cutoff=0.8)[0]
                         await message.author.add_roles(bot.data['roles']['checkedAlly'])
                     except IndexError:
                         pass
-                    finally:
-                        return
                 else:
                     await message.add_reaction("❌")
                     embed = discord.Embed(title="Hello {}".format(message.author.name), 
@@ -81,12 +78,11 @@ CLAN :```""", inline=False)
                     embed.set_footer(text='ปล. ในDiscord[PC] สามารถขึ้นบรรทัดใหม่ด้วยการกดปุ่ม Shift ค้าง + ปุ่ม Enter(จำเป็นต้องขึ้นบรรทัดใหม่)', icon_url=bot.data['icon']) 
                     await message.author.send(embed=embed)
                     await message.delete(delay=60)
-
-                    return
+                return
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    
 
-            if message.channel == bot.data['channels']['clan'] and (set(message.author.roles) & bot.data['admins']):
+            if message.channel == bot.data['channels']['clan'] and (set(message.author.roles).intersection(bot.data['roles']['admins'])):
                 currentTime = (datetime.now() + timedelta(hours=7)).ctime()
                 if message.mention_everyone:   
                     mes = ['']*2
@@ -136,35 +132,26 @@ CLAN :```""", inline=False)
                             await member.send(embed=embed)
                         except discord.Forbidden:
                             await message.channel.send('Can not send message to {}'.format(member.name))
-                    await message.add_reaction("✅")                
-
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
-            if message.channel == bot.data['channels']['build']:
-                stringList = re.split('\n',message.content.strip().replace(':',' '))
-                profile = {}
-                for string in stringList:
-                    try:
-                        temp = re.search(r'^[^\s]+', string.strip()).group()
-                        key = get_close_matches(temp, ['Name', 'IGN', 'Description'], 1)[0]
-                        value = string.strip().replace(temp,'').strip()
-                        profile[key] = value
-                    except (IndexError, AttributeError):
-                        pass
-
-                if ['Description', 'IGN', 'Name'] == sorted(list(profile.keys())):
-                    attachments = message.attachments[0].url            
-                    if profile['Name'] in bot.data['build']:
-                        bot.data['build'][profile['Name']].append({'Name':profile['Name'],
-                        'IGN':profile['IGN'],
-                        'Description':profile['Description'],
-                        'Image':attachments })                  
-                    else:
-                        bot.data['build'][profile['Name']] = []
-                        bot.data['build'][profile['Name']].append({'Name':profile['Name'],
-                        'IGN':profile['IGN'],
-                        'Description':profile['Description'],
-                        'Image':attachments }) 
+                    await message.add_reaction("✅")  
                 return
+
+            if message.channel == bot.data['channels']['ally']:
+                regex = re.compile('\s+:*\s*|\s*:+\s*')  
+                profile = {}
+                for line in message.content.split('\n'):
+                    splitedList = regex.split(line)
+                    key = get_close_matches(splitedList[0].title(), 
+                    {'Clan','Leader'}, 1)
+                    if not key:
+                        continue
+                    profile[key[0]] = ' '.join(splitedList[1:])
+                if message.attachments:
+                    profile['url'] = message.attachments[0].url
+                else:
+                    profile['url'] = ''
+                bot.data['ally'][profile['Clan']] = profile
+                del bot.data['ally'][profile['Clan']]['Clan']   
+                return                    
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
             if message.channel.id == 295477991356497920:
@@ -220,22 +207,6 @@ CLAN :```""", inline=False)
                     await message.author.add_roles(role)
                 await message.add_reaction("✅")
 
-            elif message.content.startswith("{}build".format(bot.data['prefix'])):
-                target = message.content.replace('{}build'.format(bot.data['prefix']), '').lower().replace('prime', '').replace('kuva', '').replace('vandal', '').replace('wraith', '').replace('mara', '').replace('prisma', '').strip()
-                embedList = []
-                for name in get_close_matches(target, bot.data['build'].keys(), len(bot.data['build'])):
-                        for item in bot.data['build'][name]:
-                            embedList.append(item)
-                for emb in embedList:
-                    embed = discord.Embed(title=(emb['Name']+' Build').strip(), 
-                    url = emb['Image'], 
-                    description = 'Description : {}'.format(emb['Description']),
-                    color=0x00ff00)
-                    embed.set_image(url=emb['Image'])
-                    embed.set_footer(text='From : {}'.format(emb['IGN']), icon_url=bot.data['icon']) 
-                    await message.author.send(embed = embed)
-                await message.delete()
-
             elif message.content.startswith('{}info'.format(bot.data['prefix'])):
                 embed = await bot.data['itemCollector'].getInfo(message.content.replace('{}info'.format(bot.data['prefix']),'').strip())
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                    
@@ -266,8 +237,8 @@ CLAN :```""", inline=False)
                 await message.add_reaction("✅")
             
             elif message.content.startswith("{}party".format(bot.data['prefix'])):
-                target = message.content.replace('{}party'.format(bot.data['prefix']),'').strip()
-                embed = discord.Embed(title='{} Squad'.format(target.title()), color=0x00ff00)
+                target = message.content[len('{}party'.format(bot.data['prefix'])):].strip()
+                embed = discord.Embed(title='{} Squad'.format(target), color=0x00ff00)
                 embed.add_field(name="Squad Members", 
                 value='1. {}\n2.\n3.\n4.\n👍 => Join Squad\n👎 => Leave Squad\n🚩 => Refresh [Host]\n1️⃣2️⃣3️⃣4️⃣ => Search Profile'.format('{} [Leader]'.format(message.author.display_name)), 
                 inline=False)
@@ -288,6 +259,28 @@ CLAN :```""", inline=False)
                 bot.data['message_caches'][partyMessage.id].setUrl("https://cdn.discordapp.com/attachments/633256433512611871/692296672818233394/c05a0897365521040712bde69e3bc819.jpg")
                 await message.add_reaction("✅")
 
+            elif message.content.startswith('{}alliance'.format(bot.data['prefix'])):
+                allyMessage = await message.channel.send('```Loading...```', delete_after=300)
+                target = message.content[len('{}alliance'.format(bot.data['prefix'])):]
+                target = get_close_matches(target, bot.data['ally'].keys())
+                if target:
+                    embed = discord.Embed(title='{} Clan'.format(target[0]),
+                    description ='Leader : {}'.format(bot.data['ally'][target[0]]['Leader']),
+                    color=0x00ff00)
+                    embed.set_image(url=bot.data['ally'][target[0]]['url'])
+                    embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
+                    await allyMessage.edit(content=None, embed=embed)
+                else:
+                    bot.data['message_caches'][allyMessage.id] = AllianceCollector(allyMessage, bot.data['icon'], bot.data['footer'], bot.data['ally'])
+                    await bot.data['message_caches'][allyMessage.id].setMessage()
+                await message.add_reaction("✅")   
+
+            elif message.content.startswith('{}build'.format(bot.data['prefix'])):    
+                target = message.content[len('{}build'.format(bot.data['prefix'])):].strip()       
+                for embed in bot.data['build'].getBuild(target):
+                    await message.channel.send(embed=embed, delete_after=300)
+                await message.add_reaction("✅")  
+
             elif message.content == "{}help".format(bot.data['prefix']):
                 embed = discord.Embed(title="Greeting {}".format(message.author.name), 
                 description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = bot.data['url'], color=0x00ff00)
@@ -295,10 +288,10 @@ CLAN :```""", inline=False)
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
                 embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
                 embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
-                embed.add_field(name= "{}build <item name>".format(bot.data['prefix']), value="บอทจะทำการ search build ตามชื่อ (จาก channel build_mod)", inline=False)
                 embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
                 embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
                 embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
+                embed.add_field(name= "{}build", value="บอทจะทำการ search build จาก overframe.gg", inline=False)
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
                 await message.author.send(embed=embed)                
                 await message.add_reaction("✅")    

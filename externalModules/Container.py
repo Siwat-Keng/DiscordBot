@@ -6,7 +6,7 @@ class PartyContainer:
         self.message = message
         self.embed = embed
         self.channel = message.channel
-        self.title = title.title()
+        self.title = title
         self.leader = leader
         self.members = {leader.id:leader}
         self.intro = None
@@ -250,3 +250,53 @@ class FissureContainer:
             mission['node']), inline=False)
         embed.set_footer(text=self.footer, icon_url=self.icon) 
         await self.message.edit(content=None, embed=embed)                        
+
+class AllianceCollector:
+
+    def __init__(self, message, icon, footer, alliance):  
+        self.message = message
+        self.currentPage = 0
+        self.icon = icon
+        self.footer = footer
+        self.alliance = alliance
+
+    async def nextPage(self):
+        if len(self.alliance) <= 25*(self.currentPage+1):
+            return
+        self.currentPage += 1
+        embed = discord.Embed(title='Cat Union Alliance [Page {}]'.format(self.currentPage+1),
+        url='https://www.facebook.com/UncleCatTH/photos/a.852290578490513/852290618490509/?type=3&theater',
+        color=0x00ff00)
+        keys = list(self.alliance)[25*self.currentPage:25*(self.currentPage+1)]
+        for clan in keys:
+            embed.add_field(name= 'Clan : {}'.format(clan), 
+            value='Leader : {}'.format(self.alliance[clan]['Leader']), inline=True)
+        embed.set_footer(text=self.footer, icon_url=self.icon)
+        await self.message.edit(embed=embed)
+
+    async def prevPage(self):
+        if self.currentPage == 0:
+            return
+        self.currentPage -= 1
+        embed = discord.Embed(title='Cat Union Alliance [Page {}]'.format(self.currentPage+1),
+        url='https://www.facebook.com/UncleCatTH/photos/a.852290578490513/852290618490509/?type=3&theater',
+        color=0x00ff00)
+        keys = list(self.alliance)[25*self.currentPage:25*(self.currentPage+1)]
+        for clan in keys:
+            embed.add_field(name= 'Clan : {}'.format(clan), 
+            value='Leader : {}'.format(self.alliance[clan]['Leader']), inline=True)
+        embed.set_footer(text=self.footer, icon_url=self.icon)
+        await self.message.edit(embed=embed)
+
+    async def setMessage(self):
+        embed = discord.Embed(title='Cat Union Alliance [Page {}]'.format(self.currentPage+1),
+        url='https://www.facebook.com/UncleCatTH/photos/a.852290578490513/852290618490509/?type=3&theater',
+        color=0x00ff00)
+        keys = list(self.alliance)[25*self.currentPage:25*(self.currentPage+1)]
+        for clan in keys:
+            embed.add_field(name= 'Clan : {}'.format(clan), 
+            value='Leader : {}'.format(self.alliance[clan]['Leader']), inline=True)
+        embed.set_footer(text=self.footer, icon_url=self.icon)
+        await self.message.add_reaction(u"\u25C0")
+        await self.message.add_reaction(u"\u25B6")        
+        await self.message.edit(content=None, embed=embed) 

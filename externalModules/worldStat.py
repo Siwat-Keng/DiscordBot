@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 from difflib import get_close_matches
 import aiohttp, re
 
+class UpdateErrorException(Exception):
+    pass
+
 class SentientAnomaly:
 
     def __init__(self):
@@ -81,15 +84,15 @@ class Arbitration:
             
     def __str__(self):
         if self.waitingState:
-            return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
-        return """[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}""".format(str(self.currentMission['node']),
-        self.remainingTime, str(self.currentMission['enemy']), str(self.currentMission['type']).replace("Dark Sector ",""))
+            return "[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
+        return "[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}".format(self.currentMission['node'],
+        self.remainingTime, self.currentMission['enemy'], self.currentMission['type'].replace("Dark Sector ",""))
 
     def __repr__(self):
         if self.waitingState:
-            return """[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"""
-        return """[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}""".format(str(self.currentMission['node']),
-        self.remainingTime, str(self.currentMission['enemy']), str(self.currentMission['type']).replace("Dark Sector ",""))
+            return "[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
+        return "[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}".format(self.currentMission['node'],
+        self.remainingTime, self.currentMission['enemy'], self.currentMission['type'].replace("Dark Sector ",""))
 
 class TimeCycle:
 
@@ -165,7 +168,6 @@ class Fissures:
         self.axi = list(filter(lambda mission: mission['tierNum'] == 4, fissures))
         self.req = list(filter(lambda mission: mission['tierNum'] == 5, fissures))
     
-
 class WorldStat:
 
     def __init__(self):
@@ -190,3 +192,5 @@ class WorldStat:
                         if 'en' in worldStat['news'][index]['translations']:
                             self.news.update(worldStat['news'][index])
                             break
+                else:
+                    raise UpdateErrorException

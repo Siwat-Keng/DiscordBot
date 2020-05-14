@@ -12,10 +12,14 @@ def set_on_reaction_add(bot):
                 if reaction.emoji == u"\u25C0":
                     if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
                         await bot.data['message_caches'][reaction.message.id].decreaseRank()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
+                        await bot.data['message_caches'][reaction.message.id].prevPage()
                         
                 elif reaction.emoji == u"\u25B6":
                     if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
                         await bot.data['message_caches'][reaction.message.id].increaseRank()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
+                        await bot.data['message_caches'][reaction.message.id].nextPage()
 
                 elif reaction.emoji == "👍":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
@@ -45,7 +49,6 @@ def set_on_reaction_add(bot):
                 elif reaction.emoji == "🚩":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer) and user == bot.data['message_caches'][reaction.message.id].leader:
                         bot.data['message_caches'][await bot.data['message_caches'][reaction.message.id].refresh()] = bot.data['message_caches'][reaction.message.id]
-                        del bot.data['message_caches'][reaction.message.id]
                     elif isinstance(bot.data['message_caches'][reaction.message.id], MarketContainer) or isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
                         await bot.data['message_caches'][reaction.message.id].refresh()
                 
