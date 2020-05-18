@@ -31,8 +31,8 @@ def set_background_process(bot):
         except discord.NotFound:
             async for message in bot.data['channels']['alert'].history():
                 await message.delete()
-            bot.data['message']['updateMessage'] = await bot.data['channel']['alert'].send('```Loading...```')
-            bot.data['message']['embedMessage'] = await bot.data['channel']['alert'].send('```Loading...```') 
+            bot.data['message']['updateMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
+            bot.data['message']['embedMessage'] = await bot.data['channels']['alert'].send('```Loading...```') 
             bot.data["world_data"].news.needEdit = True          
         except:
             print("Unexpected error:", sys.exc_info())
