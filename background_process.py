@@ -7,17 +7,31 @@ from difflib import get_close_matches
 
 def set_background_process(bot):
 
-    @tasks.loop(seconds=1.0)
+    @tasks.loop(seconds=3.0)
     async def cycleMessage():
         currentTime = (datetime.now() + timedelta(hours=7)).replace(microsecond=0)
+        try:
+            async for message in bot.data['channels']['alert'].history():
+                if message.id not in bot.data['message']['collector']:
+                    await message.delete()    
+        except:
+            pass
+        
+        try:
+            status = discord.Game('{}help | {} Members'.format(bot.data['prefix'], len(bot.data['members'])))
+            await bot.client.change_presence(status=discord.Status.online, activity=status)
+        except:
+            pass
+
         if bot.data['world_data'].arbitration.needMention:
             try:
-                await bot.data['message']['arbyMention'].delete()
-            except (UnboundLocalError, discord.NotFound):
+                bot.data['message']['collector'].remove(bot.data['message']['arbyMention'].id)
+            except:
                 pass
             try:
                 bot.data['message']['arbyMention'] = await bot.data['channels']['alert'].send(bot.data['roles']['arbitration'][bot.data['world_data'].arbitration.getMention()].mention)
-            except KeyError:
+                bot.data['message']['collector'].add(bot.data['message']['arbyMention'].id) 
+            except:
                 pass
         try:
             await bot.data['message']['updateMessage'].edit(content = "```css\n{}\n\n{}\n\n{}```".format(bot.data['world_data'].arbitration, 
@@ -31,23 +45,28 @@ def set_background_process(bot):
         except discord.NotFound:
             async for message in bot.data['channels']['alert'].history():
                 await message.delete()
+            bot.data['message']['collector'] = set()
             bot.data['message']['updateMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
             bot.data['message']['embedMessage'] = await bot.data['channels']['alert'].send('```Loading...```') 
-            bot.data["world_data"].news.needEdit = True          
+            bot.data["world_data"].news.needEdit = True     
+            bot.data['message']['collector'].add(bot.data['message']['updateMessage'].id)      
+            bot.data['message']['collector'].add(bot.data['message']['embedMessage'].id)                  
         except:
             print("Unexpected error:", sys.exc_info())
 
     @cycleMessage.before_loop
     async def before_cycleMessage():
         bot.data['message'] = {}
-        game = discord.Game('!help')
+        bot.data['message']['collector'] = set() 
         await bot.client.wait_until_ready()
-        await bot.client.change_presence(status=discord.Status.online, activity=game)
         async for message in bot.data['channels']['alert'].history():
             await message.delete()
         bot.data['message']['updateMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
         bot.data['message']['embedMessage'] = await bot.data['channels']['alert'].send('```Loading...```')
-        bot.data['message']['arbyMention'] = await bot.data['channels']['alert'].send('```Loading...```')        
+        bot.data['message']['arbyMention'] = await bot.data['channels']['alert'].send('```Loading...```')  
+        bot.data['message']['collector'].add(bot.data['message']['updateMessage'].id)      
+        bot.data['message']['collector'].add(bot.data['message']['embedMessage'].id) 
+        bot.data['message']['collector'].add(bot.data['message']['arbyMention'].id)              
 
     @tasks.loop(seconds=60.0)
     async def memberCycle():
@@ -94,7 +113,7 @@ def set_background_process(bot):
                 id=bot.data['roles'][role])   
 
         async for message in bot.data['channels']['ally'].history(limit=None):
-            regex = re.compile('\s+:*\s*|\s*:+\s*')
+            regex = re.compile('[: ]+')
             profile = {}
             for line in message.content.split('\n'):
                 splitedList = regex.split(line)
@@ -111,18 +130,18 @@ def set_background_process(bot):
             del bot.data['ally'][profile['Clan']]['Clan']                
 
         async for message in bot.data['channels']['intro'].history(limit=None):
-            regex = re.compile('\s+:*\s*|\s*:+\s*')
+            regex = re.compile('[: ]+')
             profile = {}
             for line in message.content.split('\n'):
                 splitedList = regex.split(line)
                 key = get_close_matches(splitedList[0].title(), 
-                {'ชื่อ','อายุ','Ign','Clan','Age','Name','Ign(ชื่อในเกม)'}, 1)
+                {'ชื่อ','อายุ','Ign','Clan','Age','Name','Ign(ชื่อในเกม)'})
                 if not key:
                     continue
                 profile[key[0].replace('(ชื่อในเกม)', 
                 '').replace('ชื่อ', 'Name').replace('อายุ', 
-                'Age')] = ' '.join(splitedList[1:])
-            if len(profile) == 4 and profile['Name'] and profile['Ign']:
+                'Age')] = ' '.join(splitedList[1:]).strip() 
+            if {'Name', 'Age', 'Ign', 'Clan'}.issubset(profile) and profile['Name'] and profile['Ign']:
                 bot.data['members'][message.author.id] = profile
 
     @tasks.loop(seconds=3600.0)
@@ -137,7 +156,7 @@ def set_background_process(bot):
         bot.data['itemCollector'] = itemInfo.ItemInfo()
         await bot.client.wait_until_ready()  
         
-    @tasks.loop(seconds=1.0)
+    @tasks.loop(seconds=3.0)
     async def updateData():
         try:
             await bot.data['world_data'].update()

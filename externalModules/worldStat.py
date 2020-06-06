@@ -2,39 +2,23 @@ from datetime import datetime, timedelta
 from difflib import get_close_matches
 import aiohttp, re
 
-class UpdateErrorException(Exception):
-    pass
-
 class SentientAnomaly:
 
     def __init__(self):
         self.currentMission = None
         self.remainingTime = None
-        self.counter = None
-        self.firstUpdate = True
                 
     def update(self, data):
-        currentTime = datetime.now().replace(microsecond=0)
 
         try:
-            if self.firstUpdate and self.currentMission != None and self.currentMission != data['mission']['node']:
-                self.firstUpdate = False
-                
-            if self.currentMission != data['mission']['node']:
-                self.currentMission = data['mission']['node']
-                self.counter = currentTime + timedelta(minutes=30)
-                self.remainingTime = "{} minutes".format((self.counter - currentTime).seconds//60)
-            else:
-                self.remainingTime = "{} minutes".format((self.counter - currentTime).seconds//60)
-                if (self.counter - currentTime).seconds//60 <= 0:
-                    self.remainingTime = "<1 minute"
-
+            self.currentMission = data['mission']['node']
+            remainingTime = (datetime.strptime(data['expiry'], '%Y-%m-%dT%X.000Z') - datetime.now()).seconds//60     
+            if remainingTime <= 0 or remainingTime > 30:
+                remainingTime = '<1'
+            self.remainingTime = '{} minutes'.format(remainingTime)           
         except (TypeError,KeyError):
             self.currentMission = "Loading..."
             self.remainingTime = "Loading..."
-
-        if self.firstUpdate:
-            self.remainingTime = "Calculating."
 
     def __str__(self):
         return "[ Sentient Anomaly ] \nLocation : {}\nAvailable : {}".format(self.currentMission,
@@ -76,8 +60,8 @@ class Arbitration:
     def getMention(self):
         self.needMention = False
         try:
-            return get_close_matches(self.currentMission['type'].lower(),['survival', 'defense', 'defection', 'disruption', 
-            'excavation', 'interception', 'infested salvage'],1)[0].capitalize()
+            return get_close_matches(self.currentMission['type'].replace('Dark Sector ',''),['Survival', 'Defense', 'Defection', 'Disruption', 
+            'Excavation', 'Interception', 'Infested Salvage'],1)[0]
         except IndexError:
             self.needMention = True
             return ""
@@ -192,5 +176,3 @@ class WorldStat:
                         if 'en' in worldStat['news'][index]['translations']:
                             self.news.update(worldStat['news'][index])
                             break
-                else:
-                    raise UpdateErrorException

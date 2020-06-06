@@ -6,6 +6,7 @@ def set_on_member_join(bot):
         if member.guild != bot.data['guild']:
             return
         try:
+            await member.add_roles(bot.data['roles']['waitingIntro'])
             if member.bot:
                 await member.kick()
                 return

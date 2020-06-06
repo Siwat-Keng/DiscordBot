@@ -2,8 +2,9 @@ import discord, re
 from difflib import get_close_matches
 from datetime import datetime, timedelta
 from externalModules.Container import *
+from externalModules.LiveSearch import LiveSearch, InvalidSearch
 
-COMMANDS = {'info','arbitration','price','help','kuva','party', 'fissure', 'build'}
+COMMANDS = {'info','arbitration','price','help','riven','party', 'fissure', 'build','alliance'}
 
 def set_on_message(bot):
 
@@ -28,7 +29,7 @@ def set_on_message(bot):
                 return
 
             if message.channel == bot.data['channels']['intro']:
-                regex = re.compile('\s+:*\s*|\s*:+\s*')
+                regex = re.compile('[: ]+')
                 profile = {}
                 for line in message.content.split('\n'):
                     splitedList = regex.split(line)
@@ -38,7 +39,7 @@ def set_on_message(bot):
                         continue
                     profile[key[0].replace('(ชื่อในเกม)', 
                     '').replace('ชื่อ', 'Name').replace('อายุ', 
-                    'Age')] = ' '.join(splitedList[1:])
+                    'Age')] = ' '.join(splitedList[1:]).strip()
                 if len(profile) == 4 and profile['Name'] and profile['Ign']:
                     await message.author.add_roles(bot.data['roles']['checkedIntro'])
                     await message.author.remove_roles(bot.data['roles']['waitingIntro'])
@@ -49,15 +50,18 @@ def set_on_message(bot):
                     except:
                         pass
 
-                    embed = discord.Embed(title="Welcome {}".format(profile['Name']), description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = 'https://www.facebook.com/UncleCatTH', color=0x00ff00)
+                    embed = discord.Embed(title="Welcome {}".format(profile['Name']), 
+                    description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง {}'.format(bot.data['channels']['botcommands'].name), 
+                    url = bot.data['url'], color=0x00ff00)
                     embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                     value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
-                    embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
-                    embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
-                    embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
-                    embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
-                    embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
-                    embed.add_field(name= "{}build", value="บอทจะทำการ search build จาก overframe.gg", inline=False)
+                    embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
+                    embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                    embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะสร้างข้อความเพื่อหา Squad Member", inline=False)
+                    embed.add_field(name= "{}fissure".format(bot.data['prefix']), value="บอทจะแสดง mission void fissure ปัจจุบัน", inline=False)
+                    embed.add_field(name= "{}build".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
+                    embed.add_field(name= "{}riven <weapon name> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
+                    embed.add_field(name= "{}alliance <clan name>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
                     embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
                     try:
@@ -180,7 +184,7 @@ CLAN :```""", inline=False)
                 buyMessage = await message.channel.send('```Loading...```', delete_after=300)
                 sellMessage = await message.channel.send('```Loading...```', delete_after=300)
                 try:
-                    itemName = bot.data['itemCollector'].toName(message.content.replace('!price','').strip().lower())
+                    itemName = bot.data['itemCollector'].toName(message.content[len('{}price'.format(bot.data['prefix'])):].strip().lower())
                 except KeyError:
                     await buyMessage.delete()
                     await sellMessage.delete()
@@ -198,7 +202,7 @@ CLAN :```""", inline=False)
                 await message.add_reaction("✅")
 
             elif message.content.startswith('{}arbitration'.format(bot.data['prefix'])):
-                target = message.content.replace('{}arbitration'.format(bot.data['prefix']),'')
+                target = message.content[len('{}arbitration'.format(bot.data['prefix'])):].strip().lower()
                 roleName = get_close_matches(target.lower(), bot.data['roles']['arbitration'].keys(), 1)[0]
                 role = bot.data['roles']['arbitration'][roleName]
                 if role in message.author.roles:
@@ -208,25 +212,9 @@ CLAN :```""", inline=False)
                 await message.add_reaction("✅")
 
             elif message.content.startswith('{}info'.format(bot.data['prefix'])):
-                embed = await bot.data['itemCollector'].getInfo(message.content.replace('{}info'.format(bot.data['prefix']),'').strip())
+                embed = await bot.data['itemCollector'].getInfo(message.content[len('{}info'.format(bot.data['prefix'])):].strip().lower())
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                    
                 await message.channel.send(embed=embed)
-                await message.add_reaction("✅")
-
-            elif message.content.startswith('{}kuva'.format(bot.data['prefix'])):
-                temp = message.content[5:].lower().replace('kuva', '').split()
-                if len(temp) < 2:
-                    await message.add_reaction("❌")
-                    return
-                weaponName = ' '.join(temp[:len(temp)-1])
-                elemental = temp[len(temp)-1]            
-                weaponName, weaponList = await bot.data['itemCollector'].getKuvaWeaponPrice(weaponName, elemental)
-                embed = discord.Embed(title='Kuva {} Sellers'.format(weaponName), 
-                url = 'https://www.warframeteams.com/index.php', color=0x00ff00)
-                for item in weaponList:
-                    embed.add_field(name= str(item), value=item.getMessage(), inline=False)
-                embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                     
-                await message.channel.send(embed=embed, delete_after=300)
                 await message.add_reaction("✅")
 
             elif message.content == "{}fissure".format(bot.data['prefix']):
@@ -281,18 +269,44 @@ CLAN :```""", inline=False)
                     await message.channel.send(embed=embed, delete_after=300)
                 await message.add_reaction("✅")  
 
+            elif message.content.startswith("{}riven".format(bot.data['prefix'])):  
+                target = message.content[len('{}riven'.format(bot.data['prefix'])):].strip() 
+                searchMessage = await message.channel.send('```Loading...```')   
+                try:
+                    bot.data['message_caches'][searchMessage.id] = LiveSearch(bot.client, searchMessage, target, bot.data['footer'], bot.data['icon'], 
+                    list(bot.data['itemCollector'].weapons.keys()), message.author)        
+                except InvalidSearch:
+                    try:
+                        regex = re.compile('^[^+-]+')
+                        target = regex.search(target).group().strip()
+                        embed = await bot.data['itemCollector'].getRivenPrice(target.lower())   
+                        embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
+                        await searchMessage.clear_reactions()
+                        await searchMessage.edit(content=None, embed=embed, delete_after=300) 
+                    except:
+                        await searchMessage.delete()
+                        await message.add_reaction("❌")
+                        return     
+                except:
+                    await searchMessage.delete()
+                    await message.add_reaction("❌")
+                    return      
+                await message.add_reaction("✅")               
+
             elif message.content == "{}help".format(bot.data['prefix']):
-                embed = discord.Embed(title="Greeting {}".format(message.author.name), 
-                description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง bot_command', url = bot.data['url'], color=0x00ff00)
+                embed = discord.Embed(title="Hello {}".format(message.author.name), 
+                description = 'สามารถใช้คำสั่งต่าง ๆ ต่อไปนี้ได้ที่ห้อง {}'.format(bot.data['channels']['botcommands'].name), 
+                url = bot.data['url'], color=0x00ff00)
                 embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
-                embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
-                embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะทำการ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
-                embed.add_field(name= "{}kuva <item name> <element>".format(bot.data['prefix']), value="บอทจะทำการ search ราคา kuva weapon ตามชื่อและธาตุโบนัส (จาก WarframeTeams.com)", inline=False)
-                embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะทำการสร้างข้อความเพื่อหา Squad Member", inline=False)
-                embed.add_field(name= "{}fissure", value="บอทจะทำการแสดง mission void fissure ปัจจุบัน", inline=False)
-                embed.add_field(name= "{}build", value="บอทจะทำการ search build จาก overframe.gg", inline=False)
-                embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
+                embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
+                embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะสร้างข้อความเพื่อหา Squad Member", inline=False)
+                embed.add_field(name= "{}fissure".format(bot.data['prefix']), value="บอทจะแสดง mission void fissure ปัจจุบัน", inline=False)
+                embed.add_field(name= "{}build".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
+                embed.add_field(name= "{}riven <weapon name> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
+                embed.add_field(name= "{}alliance <clan name>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
+                embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                 await message.author.send(embed=embed)                
                 await message.add_reaction("✅")    
 
