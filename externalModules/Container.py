@@ -45,7 +45,6 @@ class PartyContainer:
             await self.message.edit(embed=embed)
             return True
         await self.message.delete()
-        del self
         return False
 
     async def refresh(self):

@@ -45,11 +45,14 @@ class BuildCollector:
     def getBuild(self, name):
         target = get_close_matches(name, self.available, 1)
         if not target:
-            embed = discord.Embed(title='ไม่พบ build [{}]'.format(name), 
-            description='กดที่หัวข้อเพื่อติดต่อ Uncle Cat',
-            url='https://www.facebook.com/UncleCatTH/', color=0x00ff00)
-            embed.set_footer(text=self.footer, icon_url=self.icon)
-            return [embed]
+            if not name.endswith(' Prime'):
+                return self.getBuild('{} Prime'.format(name))
+            else:
+                embed = discord.Embed(title='ไม่พบ build ดังกล่าว', 
+                description='กดที่หัวข้อเพื่อติดต่อ Uncle Cat',
+                url='https://www.facebook.com/UncleCatTH/', color=0x00ff00)
+                embed.set_footer(text=self.footer, icon_url=self.icon)
+                return [embed]
         target = target[0]
         target = list(filter(lambda build: build.name == target, self.collector))
         output = []

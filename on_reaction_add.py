@@ -1,5 +1,6 @@
 import discord
 from externalModules.Container import *
+from externalModules.LiveSearch import LiveSearch
 
 def set_on_reaction_add(bot):
     
@@ -14,12 +15,16 @@ def set_on_reaction_add(bot):
                         await bot.data['message_caches'][reaction.message.id].decreaseRank()
                     elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
                         await bot.data['message_caches'][reaction.message.id].prevPage()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch):
+                        await bot.data['message_caches'][reaction.message.id].container.prev()                        
                         
                 elif reaction.emoji == u"\u25B6":
                     if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
                         await bot.data['message_caches'][reaction.message.id].increaseRank()
                     elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
                         await bot.data['message_caches'][reaction.message.id].nextPage()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch):
+                        await bot.data['message_caches'][reaction.message.id].container.next()                        
 
                 elif reaction.emoji == "👍":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
@@ -69,8 +74,12 @@ def set_on_reaction_add(bot):
 
                 elif reaction.emoji == "🇷":    
                     if isinstance(bot.data['message_caches'][reaction.message.id], FissureContainer):
-                        await bot.data['message_caches'][reaction.message.id].setReq()                
+                        await bot.data['message_caches'][reaction.message.id].setReq()  
 
+                elif reaction.emoji == "❌":    
+                    if isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch) and user == bot.data['message_caches'][reaction.message.id].owner:
+                        bot.data['message_caches'][reaction.message.id].searching = False
+                        await reaction.message.delete()                                      
 
         except Exception as err:
             print('Error on reaction : {}'.format(err))

@@ -1,10 +1,5 @@
-from bs4 import BeautifulSoup
 from difflib import get_close_matches
-import aiohttp, discord, json, concurrent.futures
-
-async def loads(text):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        return executor.submit(json.loads, text).result()
+import aiohttp, discord
 
 class MarketItem():
 
@@ -222,31 +217,29 @@ class ItemInfo():
         output = {}
         output['buy'] = [[] for i in range(11)]
         output['sell'] = [[] for i in range(11)]          
-        output['url'] = 'https://warframe.market/items/' + self.url[name]
+        output['url'] = 'https://warframe.market/items/{}'.format(self.url[name])
         output['itemName'] = name
         maximum = -1
         async with aiohttp.ClientSession() as session:
-            request = await session.get(output['url'])
+            request = await session.get('https://api.warframe.market/v1/items/{}/orders?include=item'.format(self.url[name]))
             if request.status == 200:
-                text = await request.read()
-                soup = BeautifulSoup(text, "html.parser").find('script', id='application-state').contents[0]
-                json = await loads(soup)
-                for order in json['payload']['orders']:
-                    if(order['user']['status'] == 'ingame'):
-                        if(order['order_type'] == 'buy'):
-                            if 'mod_rank' in order:
-                                output['buy'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
-                                if order['mod_rank'] > maximum:
-                                    maximum = order['mod_rank']
-                            else:
-                                output['buy'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                json = await request.json()
+                json = list(filter(lambda item: item['user']['status'] != 'offline', json['payload']['orders']))
+                for order in json:
+                    if(order['order_type'] == 'buy'):
+                        if 'mod_rank' in order:
+                            output['buy'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
+                            if order['mod_rank'] > maximum:
+                                maximum = order['mod_rank']
                         else:
-                            if 'mod_rank' in order:             
-                                output['sell'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
-                                if order['mod_rank'] > maximum:
-                                    maximum = order['mod_rank']                                             
-                            else:
-                                output['sell'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                            output['buy'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
+                    else:
+                        if 'mod_rank' in order:             
+                            output['sell'][order['mod_rank']].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum'], order['mod_rank']))
+                            if order['mod_rank'] > maximum:
+                                maximum = order['mod_rank']                                             
+                        else:
+                            output['sell'][0].append(MarketItem(order['user']['ingame_name'], name, order['quantity'], order['platinum']))
 
                 if maximum > -1:
                     output['hasRank'] = True
@@ -262,45 +255,21 @@ class ItemInfo():
             else:
                 raise ConnectionError
 
-
-    async def getKuvaWeaponPrice(self, name, bonus):
+    async def getRivenPrice(self, weapon):    
         async with aiohttp.ClientSession() as session:
-            async with session.get('https://www.warframeteams.com/index.php') as request:
-                text = await request.read()
-                if request.status == 200:
-                    text = await request.read()
-                    raw_data = BeautifulSoup(text, "html.parser")
-                    data = raw_data.find_all('tr')
-                    sector_data = raw_data.findAll("div", {"class": "wfmain"})
-                    raw_weapon = sector_data[0]
-                    raw_bonus = sector_data[1]
-                    weapons = []
-                    bonuses = []
-                    for w in raw_weapon.findAll("form", {"class": "warframesmainform"}):
-                        weapons.append(w.find("input")['value'])
-
-                    for w in raw_bonus.findAll("form", {"class": "warframesmainform"}):
-                        bonuses.append(w.find("input")['value'])
-                    try:
-                        weaponName = get_close_matches(name,weapons, 1)[0]
-                        elementalName = get_close_matches(bonus,bonuses, 1)[0]
-                    except IndexError:
-                        weaponName = ''
-                        elementalName = ''   
-                    try:
-                        key = data[0].get_text().strip('\n').split('\n')
-                        result = {}
-                        for i in data[1:]:
-                            info = i.get_text().strip('\n').split('\n')
-                            if len(info) != len(key):
-                                continue
-                            if info[2] not in result and info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
-                                result[info[2]] = [KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6])]
-                            elif info[1] == 'In game' and info[2] == weaponName and info[3] == elementalName:
-                                result[info[2]].append(KuvaWeapon(info[0], info[2], info[3], info[4], info[5], info[6]))  
-                        return (weaponName, sorted(result[weaponName]))
-                    except KeyError:
-                        return (weaponName, {})
-
-                else:
-                    raise ConnectionError
+            async with session.get('https://api.warframestat.us/pc/rivens') as request:
+                rivens = await request.json()
+                result = {}
+                for riven in rivens.values():
+                    result.update(riven)
+                riven = get_close_matches(weapon, result.keys())[0] 
+                embed = discord.Embed(title='{} Riven'.format(riven), 
+                description='Weekly Riven Price(Official)', url='https://warframe.com/repos/weeklyRivensPC.json', color=0x00ff00)
+                embed.add_field(name='Unroll Riven',
+                    value='```Price Range : {} - {}\nAverage Price : {}```'.format(result[riven]['unrolled']['min'], 
+                    result[riven]['unrolled']['max'], result[riven]['unrolled']['avg']))
+                embed.add_field(name='Rolled Riven',
+                    value='```Price Range : {} - {}\nAverage Price : {}```'.format(result[riven]['rerolled']['min'], 
+                    result[riven]['rerolled']['max'], result[riven]['rerolled']['avg']))                                        
+                embed.set_image(url='https://cdn.warframestat.us/img/{}'.format(self.weapons[riven]['imageName']))
+                return embed
