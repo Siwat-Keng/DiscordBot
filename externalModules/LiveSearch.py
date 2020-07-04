@@ -49,7 +49,7 @@ class Stats():
 
     def getURL(self):
         url = {}
-        url['rv.market'] = 'https://riven.market/_modules/riven/showrivens.php?baseurl=Lw==&platform=PC&limit=200&recency=-1&veiled=false&onlinefirst=true&polarity=all&rank=all&mastery=16&weapon={}&stats={}&neg={}&price=99999&rerolls=-1&sort=time&direction=ASC&page=1&time={}'.format(self.name.replace(' ','_'), 
+        url['rv.market'] = 'https://riven.market/_modules/riven/showrivens.php?baseurl=Lw==&platform=PC&limit=500&recency=-1&veiled=false&onlinefirst=true&polarity=all&rank=all&mastery=16&weapon={}&stats={}&neg={}&price=99999&rerolls=-1&sort=time&direction=ASC&page=1&time={}'.format(self.name.replace(' ','_'), 
         ','.join(self.positive), self.negative[0], str(datetime.now().timestamp()).replace('.','')[:13])
         positive = '&positive_stats={}'.format(','.join([self.translator[pos].replace(' ','_').lower() for pos in self.positive if pos.strip() != '']))
         negative = ''
@@ -412,7 +412,7 @@ class LiveSearch():
                         if request.status == 200:
                             text = await request.read()  
                             soup = BeautifulSoup(text, "html.parser")  
-                            for riven in soup.find_all("div", {"id": "riven-list"})[0].find_all("div", {"class": "riven"}):
+                            for riven in soup.find_all("div", {"class": "riven"}):
                                 if riven.find_all("div", {"class": "attribute online offline"}):
                                     break    
                                 if self.target.getPriceRange() and int(riven['data-price']) not in self.target.getPriceRange():

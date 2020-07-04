@@ -38,14 +38,14 @@ class Arbitration:
         self.waitingState = True
 
     def update(self, mission):
-        if len(mission) != 7:
-            return
+        template = { key : 'Unidentified' for key in {'node', 'type', 'enemy'} }
+        template.update(mission)
         currentTime = datetime.now().replace(microsecond=0)
-        if self.prevArbitration != mission:
+        if self.prevArbitration != template:
             self.needMention = True
             self.waitingState = False
-        self.prevArbitration = mission
-        self.currentMission = mission
+        self.prevArbitration = template
+        self.currentMission = template
         self.remainingTime = (timedelta(minutes=65)-timedelta(minutes=currentTime.minute)).seconds//60
         if self.remainingTime > 60:
             self.remainingTime -= 60
@@ -60,8 +60,8 @@ class Arbitration:
     def getMention(self):
         self.needMention = False
         try:
-            return get_close_matches(self.currentMission['type'].replace('Dark Sector ',''),['Survival', 'Defense', 'Defection', 'Disruption', 
-            'Excavation', 'Interception', 'Infested Salvage'],1)[0]
+            return get_close_matches(self.currentMission['type'].replace('Dark Sector ',''),{'Survival', 'Defense', 'Defection', 'Disruption', 
+            'Excavation', 'Interception', 'Infested Salvage'},1)[0]
         except IndexError:
             self.needMention = True
             return ""

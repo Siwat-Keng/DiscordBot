@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from externalModules.Container import *
 from externalModules.LiveSearch import LiveSearch, InvalidSearch
 
-COMMANDS = {'info','arbitration','price','help','riven','party', 'fissure', 'build','alliance'}
+COMMANDS = {'drop','arbitration','price','help','riven','party', 'fissure', 'build','alliance'}
 
 def set_on_message(bot):
 
@@ -55,13 +55,13 @@ def set_on_message(bot):
                     url = bot.data['url'], color=0x00ff00)
                     embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                     value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
-                    embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
-                    embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                    embed.add_field(name= "{}price <item>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
+                    embed.add_field(name= "{}drop <item>".format(bot.data['prefix']), value="บอทจะ search ตำแหน่งที่ดรอป ตามชื่อ (จาก Warframe Wiki)", inline=False)
                     embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะสร้างข้อความเพื่อหา Squad Member", inline=False)
                     embed.add_field(name= "{}fissure".format(bot.data['prefix']), value="บอทจะแสดง mission void fissure ปัจจุบัน", inline=False)
-                    embed.add_field(name= "{}build".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
-                    embed.add_field(name= "{}riven <weapon name> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
-                    embed.add_field(name= "{}alliance <clan name>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
+                    embed.add_field(name= "{}build <item>".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
+                    embed.add_field(name= "{}riven <weapon> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
+                    embed.add_field(name= "{}alliance <clan>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
                     embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                     await message.author.send(embed=embed)
                     try:
@@ -211,8 +211,8 @@ CLAN :```""", inline=False)
                     await message.author.add_roles(role)
                 await message.add_reaction("✅")
 
-            elif message.content.startswith('{}info'.format(bot.data['prefix'])):
-                embed = await bot.data['itemCollector'].getInfo(message.content[len('{}info'.format(bot.data['prefix'])):].strip().lower())
+            elif message.content.startswith('{}drop'.format(bot.data['prefix'])):
+                embed = bot.data['itemCollector'].getDropInfo(message.content[len('{}drop'.format(bot.data['prefix'])):].strip().lower())
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])                    
                 await message.channel.send(embed=embed)
                 await message.add_reaction("✅")
@@ -226,25 +226,9 @@ CLAN :```""", inline=False)
             
             elif message.content.startswith("{}party".format(bot.data['prefix'])):
                 target = message.content[len('{}party'.format(bot.data['prefix'])):].strip()
-                embed = discord.Embed(title='{} Squad'.format(target), color=0x00ff00)
-                embed.add_field(name="Squad Members", 
-                value='1. {}\n2.\n3.\n4.\n👍 => Join Squad\n👎 => Leave Squad\n🚩 => Refresh [Host]\n1️⃣2️⃣3️⃣4️⃣ => Search Profile'.format('{} [Leader]'.format(message.author.display_name)), 
-                inline=False)
-                embed.set_image(url="https://cdn.discordapp.com/attachments/633256433512611871/692296672818233394/c05a0897365521040712bde69e3bc819.jpg")
-                embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
-                partyMessage = await bot.data['channels']['general'].send(embed=embed, delete_after=1800)
-                await partyMessage.add_reaction("👍")
-                await partyMessage.add_reaction("👎")
-                await partyMessage.add_reaction("1️⃣")
-                await partyMessage.add_reaction("2️⃣")
-                await partyMessage.add_reaction("3️⃣")
-                await partyMessage.add_reaction("4️⃣")   
-                await partyMessage.add_reaction("🚩")   
-                bot.data['message_caches'][partyMessage.id] = PartyContainer(partyMessage, embed, target, message.author)      
-                bot.data['message_caches'][partyMessage.id].setFooterText(bot.data['footer'])      
-                bot.data['message_caches'][partyMessage.id].setIcon(bot.data['icon'])
-                bot.data['message_caches'][partyMessage.id].setIntroChannel(bot.data['channels']['intro'])
-                bot.data['message_caches'][partyMessage.id].setUrl("https://cdn.discordapp.com/attachments/633256433512611871/692296672818233394/c05a0897365521040712bde69e3bc819.jpg")
+                partyMessage = await bot.data['channels']['general'].send(content='```...Loading...```', delete_after=1800) 
+                bot.data['message_caches'][partyMessage.id] = PartyContainer(partyMessage, target, message.author, bot.data['footer'], bot.data['icon'])      
+                await bot.data['message_caches'][partyMessage.id].setMessage()
                 await message.add_reaction("✅")
 
             elif message.content.startswith('{}alliance'.format(bot.data['prefix'])):
@@ -299,13 +283,13 @@ CLAN :```""", inline=False)
                 url = bot.data['url'], color=0x00ff00)
                 embed.add_field(name= "{}arbitration <mode>".format(bot.data['prefix']), 
                 value="บอทจะ tag เมื่อ arbitration เป็น mode ที่กำหนด (สามารถใช้คำสั่งนี้ซ้ำอีกครั้ง เพื่อยกเลิก)", inline=False)
-                embed.add_field(name= "{}price <item name>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
-                embed.add_field(name= "{}info <item name>".format(bot.data['prefix']), value="บอทจะ search ข้อมูล item ตามชื่อ (จาก Warframe Wiki)", inline=False)
+                embed.add_field(name= "{}price <item>".format(bot.data['prefix']), value="บอทจะ search ราคา item ตามชื่อ (จาก Warframe Market)", inline=False)
+                embed.add_field(name= "{}drop <item>".format(bot.data['prefix']), value="บอทจะ search ตำแหน่งที่ดรอป ตามชื่อ (จาก Warframe Wiki)", inline=False)
                 embed.add_field(name= "{}party <message>".format(bot.data['prefix']), value="บอทจะสร้างข้อความเพื่อหา Squad Member", inline=False)
                 embed.add_field(name= "{}fissure".format(bot.data['prefix']), value="บอทจะแสดง mission void fissure ปัจจุบัน", inline=False)
-                embed.add_field(name= "{}build".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
-                embed.add_field(name= "{}riven <weapon name> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
-                embed.add_field(name= "{}alliance <clan name>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
+                embed.add_field(name= "{}build <item>".format(bot.data['prefix']), value="บอทจะ search build จาก overframe.gg", inline=False)
+                embed.add_field(name= "{}riven <weapon> <+stat +stat +stat -stat> <price>".format(bot.data['prefix']), value="บอทจะ live search riven", inline=False)                     
+                embed.add_field(name= "{}alliance <clan>".format(bot.data['prefix']), value="บอทจะแสดงข้อมูลแคลนนั้น ๆ (ใน alliance)", inline=False)                     
                 embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon'])
                 await message.author.send(embed=embed)                
                 await message.add_reaction("✅")    

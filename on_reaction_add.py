@@ -12,7 +12,9 @@ def set_on_reaction_add(bot):
             if reaction.message.id in bot.data['message_caches']:
                 if reaction.emoji == u"\u25C0":
                     if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
-                        await bot.data['message_caches'][reaction.message.id].decreaseRank()
+                        await bot.data['message_caches'][reaction.message.id].prevPage()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], MarketContainer):
+                        await bot.data['message_caches'][reaction.message.id].prevPage()                        
                     elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
                         await bot.data['message_caches'][reaction.message.id].prevPage()
                     elif isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch):
@@ -20,7 +22,9 @@ def set_on_reaction_add(bot):
                         
                 elif reaction.emoji == u"\u25B6":
                     if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
-                        await bot.data['message_caches'][reaction.message.id].increaseRank()
+                        await bot.data['message_caches'][reaction.message.id].nextPage()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], MarketContainer):
+                        await bot.data['message_caches'][reaction.message.id].nextPage()                        
                     elif isinstance(bot.data['message_caches'][reaction.message.id], AllianceCollector):
                         await bot.data['message_caches'][reaction.message.id].nextPage()
                     elif isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch):
@@ -33,23 +37,11 @@ def set_on_reaction_add(bot):
                 elif reaction.emoji == "👎":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
                         if not await bot.data['message_caches'][reaction.message.id].remove_member(user):
-                            del bot.data['message_caches'][reaction.message.id]
+                            del bot.data['message_caches'][reaction.message.id]                          
 
-                elif reaction.emoji == "1️⃣":
+                elif reaction.emoji == "📃":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
-                        await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'], 1)
-
-                elif reaction.emoji == "2️⃣":
-                    if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
-                        await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'], 2)                    
-
-                elif reaction.emoji == "3️⃣":
-                    if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
-                        await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'], 3)                 
-
-                elif reaction.emoji == "4️⃣":
-                    if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
-                        await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'], 4)                  
+                        await bot.data['message_caches'][reaction.message.id].getMemberProfile(bot.data['members'])                      
 
                 elif reaction.emoji == "🚩":
                     if isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer) and user == bot.data['message_caches'][reaction.message.id].leader:
@@ -79,8 +71,20 @@ def set_on_reaction_add(bot):
                 elif reaction.emoji == "❌":    
                     if isinstance(bot.data['message_caches'][reaction.message.id], LiveSearch) and user == bot.data['message_caches'][reaction.message.id].owner:
                         bot.data['message_caches'][reaction.message.id].searching = False
-                        await reaction.message.delete()                                      
+                        await reaction.message.delete()     
 
+                elif reaction.emoji == "➕":
+                    if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):
+                        await bot.data['message_caches'][reaction.message.id].increaseRank()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
+                        await bot.data['message_caches'][reaction.message.id].increaseSize()
+
+                elif reaction.emoji == "➖":          
+                    if isinstance(bot.data['message_caches'][reaction.message.id], MarketRankContainer):                                                                   
+                        await bot.data['message_caches'][reaction.message.id].decreaseRank()
+                    elif isinstance(bot.data['message_caches'][reaction.message.id], PartyContainer):
+                        await bot.data['message_caches'][reaction.message.id].decreaseSize() 
+                        
         except Exception as err:
             print('Error on reaction : {}'.format(err))
 

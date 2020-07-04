@@ -1,96 +1,150 @@
-import discord, concurrent.futures, re
+import discord, re, math, asyncio
 
 class PartyContainer:
 
-    def __init__(self, message, embed, title, leader):
+    def __init__(self, message, title, leader, footerText, icon):
         self.message = message
-        self.embed = embed
         self.channel = message.channel
-        self.title = title
+        self.title = title.strip()
         self.leader = leader
         self.members = {leader.id:leader}
-        self.intro = None
-        self.url = ''
-        self.image = ''
-        self.footerText = ''
-        self.icon = ''
+        self.size = 4
+        self.footerText = footerText
+        self.icon = icon
+        if not self.title:
+            self.title = 'Unidentified Squad'
         
     async def add_member(self, member):
-        if member == self.leader or len(self.members) == 4:
+        if member == self.leader or len(self.members) == self.size:
             return
         self.members[member.id] = member
-        members = self.getMembersList()
-        embed = discord.Embed(title='{} Squad'.format(self.title), color=0x00ff00)
+        embed = discord.Embed(title=self.title, color=0x00ff00)
+        value = ''
+        for idx, member in enumerate(self.getMembersList()):
+            value += '{}. {}\n'.format(idx+1, member)
         embed.add_field(name="Squad Members", 
-        value="1. {}\n2. {}\n3. {}\n4. {}\n👍 => Join Squad\n👎 => Leave Squad\n🚩 => Refresh [Host]\n1️⃣2️⃣3️⃣4️⃣ => Search Profile".format(members[0],
-        members[1],members[2],members[3]), inline=False)
-        embed.set_image(url=self.url)
-        embed.set_footer(text=self.footerText, icon_url=self.icon)
-        self.embed = embed
-        await self.message.edit(embed=embed)
-        if len(self.members) == 4:
+        value=value.strip(), inline=False)
+        embed.add_field(name="Commands", 
+        value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+        inline=False)        
+        embed.set_footer(text=self.footerText, icon_url=self.icon)        
+        await self.message.edit(content=None, embed=embed)
+        if len(self.members) == self.size:
             await self.channel.send(self.leader.mention, delete_after = 60)
 
     async def remove_member(self, member):
         if member != self.leader:
             del self.members[member.id]
-            members = self.getMembersList()
-            embed = discord.Embed(title='{} Squad'.format(self.title), color=0x00ff00)
+            embed = discord.Embed(title=self.title, color=0x00ff00)
+            value = ''
+            for idx, member in enumerate(self.getMembersList()):
+                value += '{}. {}\n'.format(idx+1, member)
             embed.add_field(name="Squad Members", 
-            value="1. {}\n2. {}\n3. {}\n4. {}\n👍 => Join Squad\n👎 => Leave Squad\n🚩 => Refresh [Host]\n1️⃣2️⃣3️⃣4️⃣ => Search Profile".format(members[0],
-            members[1],members[2],members[3]), inline=False)
-            embed.set_image(url=self.url)
-            embed.set_footer(text=self.footerText, icon_url=self.icon)
-            self.embed = embed
-            await self.message.edit(embed=embed)
+            value=value.strip(), inline=False)
+            embed.add_field(name="Commands", 
+            value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+            inline=False)        
+            embed.set_footer(text=self.footerText, icon_url=self.icon)        
+            await self.message.edit(content=None, embed=embed)
             return True
         await self.message.delete()
         return False
 
-    async def refresh(self):
-        await self.message.delete()
-        self.message = await self.channel.send(embed=self.embed, delete_after=1800)
+    async def setMessage(self):
+        embed = discord.Embed(title=self.title, color=0x00ff00)
+        value = ''
+        for idx, member in enumerate(self.getMembersList()):
+            value += '{}. {}\n'.format(idx+1, member)
+        embed.add_field(name="Squad Members", 
+        value=value.strip(), inline=False)
+        embed.add_field(name="Commands", 
+        value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+        inline=False)       
+        embed.set_footer(text=self.footerText, icon_url=self.icon)        
+        await self.message.edit(content=None, embed=embed)
         await self.message.add_reaction("👍")
         await self.message.add_reaction("👎")
-        await self.message.add_reaction("1️⃣")
-        await self.message.add_reaction("2️⃣")
-        await self.message.add_reaction("3️⃣")
-        await self.message.add_reaction("4️⃣")   
-        await self.message.add_reaction("🚩") 
+        await self.message.add_reaction("➕")
+        await self.message.add_reaction("➖")
+        await self.message.add_reaction("📃")  
+        await self.message.add_reaction("🚩")        
+
+    async def refresh(self):
+        await self.message.delete()
+        embed = discord.Embed(title=self.title, color=0x00ff00)
+        value = ''
+        for idx, member in enumerate(self.getMembersList()):
+            value += '{}. {}\n'.format(idx+1, member)
+        embed.add_field(name="Squad Members", 
+        value=value.strip(), inline=False)
+        embed.add_field(name="Commands", 
+        value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+        inline=False)       
+        embed.set_footer(text=self.footerText, icon_url=self.icon)        
+        self.message = await self.channel.send(embed=embed, delete_after=1800)
+        await self.message.add_reaction("👍")
+        await self.message.add_reaction("👎")
+        await self.message.add_reaction("➕")
+        await self.message.add_reaction("➖")
+        await self.message.add_reaction("📃")  
+        await self.message.add_reaction("🚩")
         return self.message.id
 
-    def setFooterText(self, text):
-        self.footerText = text
-
-    def setIcon(self, icon_url):
-        self.icon = icon_url
-
-    def setUrl(self, url):
-        self.url = url
-
-    def setIntroChannel(self, intro):
-        self.intro = intro.mention
-
     def getMembersList(self):
-        members = ['', '', '', '']
+        members = ['']*self.size
         for index, member in enumerate(self.members):
             members[index] = self.members[member].display_name
             if index == 0:
                 members[index] += ' [Leader]'
         return members
 
-    async def getMemberProfile(self, data, number):
-        try:
-            profile = data[list(self.members.keys())[number-1]]
-            embed = discord.Embed(title='Member {} [Profile]'.format(number),
-            description = 'Name : {}\nAge : {}\nIGN : {}\nClan : {}'.format(profile['Name'],profile['Age'],profile['Ign'],profile['Clan']),
-            color=0x00ff00)
-            embed.set_footer(text='{} Members in Database'.format(len(data)), icon_url=self.icon)
-            await self.channel.send(embed=embed, delete_after=30)
-        except KeyError:
-            await self.channel.send('อย่าลืมไปแนะนำตัวที่ห้อง {} นะ {}'.format(self.intro ,list(self.members.values())[number-1].mention), delete_after=60)
-        except IndexError:
-            pass
+    async def getMemberProfile(self, data):
+        embed = discord.Embed(title=self.title, color=0x00ff00)
+        for idx, member in enumerate(self.getMembersList()):
+            try:
+                profile = data[list(self.members.keys())[idx]]
+                value = '```Name : {}\nIGN : {}\nAge : {}```'.format(profile['Name'], profile['Ign'], profile['Age'])
+            except KeyError:
+                await self.channel.send('อย่าลืมไปแนะนำตัวใหม่นะ {}'.format(list(self.members.values())[idx].mention), delete_after=60)
+                value = '```Name : -\nIGN : -\nAge : -```'
+            except IndexError:
+                value = '```Name :\nIGN :\nAge :```'
+            embed.add_field(name='{}. {}'.format(idx+1, member), value=value, inline=False)
+        embed.set_footer(text=self.footerText, icon_url=self.icon)  
+        await self.message.clear_reactions()
+        await self.message.edit(content=None, embed=embed)
+        await asyncio.sleep(10)
+        await self.setMessage()
+
+    async def increaseSize(self):
+        if self.size < 8:
+            self.size += 1
+            embed = discord.Embed(title=self.title, color=0x00ff00)
+            value = ''
+            for idx, member in enumerate(self.getMembersList()):
+                value += '{}. {}\n'.format(idx+1, member)
+            embed.add_field(name="Squad Members", 
+            value=value.strip(), inline=False)
+            embed.add_field(name="Commands", 
+            value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+            inline=False)        
+            embed.set_footer(text=self.footerText, icon_url=self.icon)        
+            await self.message.edit(content=None, embed=embed)
+
+    async def decreaseSize(self):
+        if self.size > 2:
+            self.size -= 1
+            embed = discord.Embed(title=self.title, color=0x00ff00)
+            value = ''
+            for idx, member in enumerate(self.getMembersList()):
+                value += '{}. {}\n'.format(idx+1, member)
+            embed.add_field(name="Squad Members", 
+            value=value.strip(), inline=False)
+            embed.add_field(name="Commands", 
+            value='👍 Join Squad\n👎 Leave Squad\n➕ Increase Limit\n➖ Decrease Limit\n📃 Members Detail\n🚩 Refresh Message', 
+            inline=False)        
+            embed.set_footer(text=self.footerText, icon_url=self.icon)        
+            await self.message.edit(content=None, embed=embed)            
 
 class MarketRankContainer:
     
@@ -102,18 +156,18 @@ class MarketRankContainer:
         self.message = message
         self.itemInfo = itemInfo
         self.icon = icon
+        self.currentPage = 1
 
     async def increaseRank(self):
         if self.market['maxRank'] <= self.currentRank:
             self.currentRank = self.market['maxRank']
             return
         self.currentRank += 1
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][self.currentRank]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
-        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon)  
         await self.message.edit(embed=embed)
                             
     async def decreaseRank(self):
@@ -121,32 +175,53 @@ class MarketRankContainer:
             self.currentRank = 0
             return
         self.currentRank -= 1
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][self.currentRank]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(embed=embed)
+
+    async def nextPage(self):
+        if self.currentPage + 1 > math.ceil(len(self.market[self.type][self.currentRank])/5):
+            return
+        self.currentPage += 1
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
+        await self.message.edit(embed=embed)
+
+    async def prevPage(self):
+        if self.currentPage == 1:
+            return
+        self.currentPage -= 1
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
         embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
         await self.message.edit(embed=embed)
 
     async def refresh(self):
         self.market = await self.itemInfo.getPrice(self.itemName)       
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][self.currentRank]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
         embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
         await self.message.edit(embed=embed)        
     
     async def setMessage(self):
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][self.currentRank]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][self.currentRank])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][self.currentRank][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
         embed.set_footer(text="Item Rank : {}".format(self.currentRank), icon_url=self.icon) 
         await self.message.edit(content = None, embed=embed)
+        await self.message.add_reaction("➕")
+        await self.message.add_reaction("➖")      
         await self.message.add_reaction(u"\u25C0")
         await self.message.add_reaction(u"\u25B6")      
         await self.message.add_reaction("🚩")
@@ -161,25 +236,48 @@ class MarketContainer:
         self.itemInfo = itemInfo
         self.icon = icon    
         self.footer = footer
+        self.currentPage = 1
+
+    async def nextPage(self):
+        if self.currentPage + 1 > math.ceil(len(self.market[self.type][0])/5):
+            return
+        self.currentPage += 1
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][0])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][0][5*(self.currentPage-1):5*self.currentPage]:
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon)
+        await self.message.edit(embed=embed) 
+
+    async def prevPage(self):
+        if self.currentPage == 1:
+            return
+        self.currentPage -= 1
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][0])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][0][5*(self.currentPage-1):5*self.currentPage]:
+            embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
+        embed.set_footer(text=self.footer, icon_url=self.icon)
+        await self.message.edit(embed=embed)      
 
     async def refresh(self):
         self.market = await self.itemInfo.getPrice(self.itemName)        
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][0]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][0])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][0][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
-        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        embed.set_footer(text=self.footer, icon_url=self.icon)
         await self.message.edit(embed=embed)        
     
     async def setMessage(self):
-        embed = discord.Embed(title="{} {}ers".format(self.market['itemName'], self.type.capitalize()), url = self.market['url'], color=0x00ff00)
-        for index, item in enumerate(self.market[self.type][0]):
-            if index >= 5:
-                break
+        embed = discord.Embed(title="{} {}ers (Page {}/{})".format(self.market['itemName'], self.type.capitalize(), 
+        self.currentPage, math.ceil(len(self.market[self.type][0])/5)), url = self.market['url'], color=0x00ff00)
+        for item in self.market[self.type][0][5*(self.currentPage-1):5*self.currentPage]:
             embed.add_field(name=item, value=item.getMessage(self.type), inline=False)
-        embed.set_footer(text=self.footer, icon_url=self.icon) 
+        embed.set_footer(text=self.footer, icon_url=self.icon)
         await self.message.edit(content = None, embed=embed)     
+        await self.message.add_reaction(u"\u25C0")
+        await self.message.add_reaction(u"\u25B6")        
         await self.message.add_reaction("🚩")
 
 class FissureContainer:
