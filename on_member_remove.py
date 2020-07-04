@@ -1,6 +1,3 @@
-import discord
-
-
 def set_on_member_remove(bot):
     
     @bot.client.event

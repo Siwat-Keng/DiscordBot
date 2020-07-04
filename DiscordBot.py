@@ -1,6 +1,6 @@
-import discord, asyncio, json
-import on_member_update,on_member_join,on_member_remove, \
-on_message, background_process,on_reaction_add
+import discord, json
+import on_member_join, on_member_remove, \
+on_message, background_process, on_reaction_add
 
 def get_data(location):
     with open(location, 'r') as file:
@@ -15,7 +15,6 @@ class DiscordBot:
 
         on_message.set_on_message(self)
         on_message.set_on_message_delete(self)
-        on_member_update.set_on_member_update(self)
         on_member_join.set_on_member_join(self)
         on_member_remove.set_on_member_remove(self)
         background_process.set_background_process(self)

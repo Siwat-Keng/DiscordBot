@@ -1,8 +1,9 @@
 import discord, re
 from difflib import get_close_matches
 from datetime import datetime, timedelta
-from externalModules.Container import *
-from externalModules.LiveSearch import LiveSearch, InvalidSearch
+from services.Container import PartyContainer, MarketRankContainer, MarketContainer, \
+    FissureContainer, AllianceCollector
+from services.LiveSearch import LiveSearch, InvalidSearch
 
 COMMANDS = {'drop','arbitration','price','help','riven','party', 'fissure', 'build','alliance'}
 

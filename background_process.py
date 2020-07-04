@@ -1,8 +1,9 @@
 import discord, sys, re
 from discord.ext import tasks
 from datetime import datetime, timedelta
-from externalModules import worldStat, itemInfo
-from externalModules.Build import BuildCollector
+from services.WorldStat import WorldStat
+from services.ItemInfo import ItemInfo
+from services.Build import BuildCollector
 from difflib import get_close_matches
 
 def set_background_process(bot):
@@ -153,7 +154,7 @@ def set_background_process(bot):
         
     @updateItem.before_loop
     async def before_updateItem():
-        bot.data['itemCollector'] = itemInfo.ItemInfo()
+        bot.data['itemCollector'] = ItemInfo()
         await bot.client.wait_until_ready()  
         
     @tasks.loop(seconds=3.0)
@@ -169,7 +170,7 @@ def set_background_process(bot):
         
     @updateData.before_loop
     async def before_updateData():       
-        bot.data['world_data'] = worldStat.WorldStat()        
+        bot.data['world_data'] = WorldStat()        
         bot.data['build'] = BuildCollector(bot.data['icon'], bot.data['footer'])
         await bot.client.wait_until_ready()
                      

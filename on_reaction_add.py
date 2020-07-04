@@ -1,6 +1,7 @@
-import discord
-from externalModules.Container import *
-from externalModules.LiveSearch import LiveSearch
+from discord.errors import NotFound
+from services.Container import PartyContainer, MarketRankContainer, MarketContainer, \
+    FissureContainer, AllianceCollector
+from services.LiveSearch import LiveSearch
 
 def set_on_reaction_add(bot):
     
@@ -92,5 +93,5 @@ def set_on_reaction_add(bot):
             try:
                 if reaction.message.id in bot.data['message_caches']:
                     await reaction.remove(user)
-            except discord.errors.NotFound:
+            except NotFound:
                 pass

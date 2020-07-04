@@ -1,4 +1,4 @@
-import discord, asyncio, json
+import discord
 
 def set_on_member_join(bot):
     @bot.client.event
