@@ -58,7 +58,7 @@ class ItemInfo():
     def __init__(self):
         self.url = {}
         self.name = {}
-        # self.weapons = {}
+        self.weapons = {}
         # self.warframe = {}
         self.drops = {}
 
@@ -68,7 +68,7 @@ class ItemInfo():
             async with aiohttp.ClientSession() as session:
                 tasks.append(asyncio.create_task(fetch('https://api.warframe.market/v1/items', session)))
                 tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/drops', session)))
-                # tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/weapons', session)))
+                tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/weapons', session)))
                 # tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/warframes', session)))
                 tasks = await asyncio.gather(*tasks)
                 for item in tasks[0]['payload']['items']:
@@ -76,8 +76,8 @@ class ItemInfo():
                     self.url[item['item_name']] = item['url_name']
                 for item in { item['item'] for item in tasks[1] }:
                     self.drops[item] = list(filter(lambda i: i['item'] == item, tasks[1]))            
-                # for weapon in tasks[2]:
-                #     self.weapons[weapon['name']] = weapon 
+                for weapon in tasks[2]:
+                    self.weapons[weapon['name']] = weapon 
                 # for warframe in tasks[3]:
                 #     self.warframe[warframe['name']] = warframe
             return True
