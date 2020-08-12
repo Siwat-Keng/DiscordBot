@@ -1,6 +1,7 @@
 import discord, json
 import on_member_join, on_member_remove, \
-on_message, background_process, on_reaction_add
+on_message, background_process, on_reaction_add, \
+on_voice_state_update
 
 def get_data(location):
     with open(location, 'r') as file:
@@ -18,7 +19,8 @@ class DiscordBot:
         on_member_join.set_on_member_join(self)
         on_member_remove.set_on_member_remove(self)
         background_process.set_background_process(self)
-        on_reaction_add.set_on_reaction_add(self)         
+        on_reaction_add.set_on_reaction_add(self)     
+        on_voice_state_update.set_on_voice_state_update(self)
 
     def run(self):
         self.client.run(self.data['token'])

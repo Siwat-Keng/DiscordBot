@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from services.WorldStat import WorldStat
 from services.ItemInfo import ItemInfo
 from services.Build import BuildCollector
+from services.Notification import Notification
+from services.Share import Share
+from services.Announcement import Announcement
 from difflib import get_close_matches
 
 def set_background_process(bot):
@@ -17,6 +20,13 @@ def set_background_process(bot):
                     await message.delete()    
         except:
             pass
+
+        try:
+            for noti in bot.data['notification']:
+                if noti.notify(currentTime):
+                    await bot.data['channels']['general'].send(noti.get_message())
+        except Exception as err:
+            print('Notification Error :', err)
         
         try:
             status = discord.Game('{}help | {} Members'.format(bot.data['prefix'], len(bot.data['members'])))
@@ -95,12 +105,19 @@ def set_background_process(bot):
         bot.data['member_join'] = []
         bot.data['ally'] = {}
         bot.data['message_caches'] = {}
+        bot.data['logging'] = {}
+        bot.data['notification'] = []
+        bot.data['announcement'] = Announcement('Notice (Uncle Cat Discord)',
+        bot.data['icon'], bot.data['clan'])
 
         await bot.client.wait_until_ready() 
 
         bot.data['guild'] = bot.client.get_guild(bot.data['guild'])
         for channel in bot.data['channels']:
-            bot.data['channels'][channel] = bot.client.get_channel(bot.data['channels'][channel])
+            if channel == 'share':
+                bot.data['channels'][channel] = Share(bot.client, bot.data['channels'][channel])
+            else:
+                bot.data['channels'][channel] = bot.client.get_channel(bot.data['channels'][channel])
         for role in bot.data['roles']:
             if role == 'arbitration':
                 for arbi in bot.data['roles']['arbitration']:
@@ -109,6 +126,11 @@ def set_background_process(bot):
             elif role == 'admins':
                 for index, admin in enumerate(bot.data['roles']['admins']):
                     bot.data['roles']['admins'][index] = discord.utils.get(bot.data['guild'].roles, id=admin)  
+            elif role == 'notifications':
+                for noti in bot.data['roles']['notifications']:
+                    noti['role'] = discord.utils.get(bot.data['guild'].roles, 
+                id=noti['role'])
+                bot.data['notification'].append(Notification(**noti))
             else:
                 bot.data['roles'][role] = discord.utils.get(bot.data['guild'].roles, 
                 id=bot.data['roles'][role])   

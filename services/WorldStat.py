@@ -7,7 +7,7 @@ class SentientAnomaly:
     def __init__(self):
         self.currentMission = None
         self.remainingTime = None
-                
+
     def update(self, data):
 
         try:

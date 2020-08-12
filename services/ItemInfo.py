@@ -151,6 +151,8 @@ class ItemInfo():
                 else:
                     raise ConnectionError
 
+    
+
     async def getRivenPrice(self, weapon):    
         async with aiohttp.ClientSession() as session:
             async with session.get('https://api.warframestat.us/pc/rivens') as request:

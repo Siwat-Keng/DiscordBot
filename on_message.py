@@ -87,57 +87,10 @@ CLAN :```""", inline=False)
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    
 
-            if message.channel == bot.data['channels']['clan'] and (set(message.author.roles).intersection(bot.data['roles']['admins'])):
-                currentTime = (datetime.now() + timedelta(hours=7)).ctime()
-                if message.mention_everyone:   
-                    mes = ['']*2
-                    spec = {}
-                    index = 0
-                    for string in message.clean_content.split('\n'):
-                        if '|' in string:
-                            temp = string.split('|')
-                            spec[temp[0].strip()] = temp[1].strip()
-                            index = 1
-                        else:
-                            mes[index] += string+'\n'
-                    for member in message.channel.members:
-                        if member.bot:
-                            continue
-                        try:
-                            spec_message = spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'
-                        except:
-                            spec_message = ''
-                        try:
-                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = mes[0]+'\n'+spec_message+mes[1], color=0x00ff00)
-                            embed.set_footer(text="From {} ({})".format(message.author.name, currentTime), icon_url=bot.data['icon'])
-                            await member.send(embed=embed)
-                        except discord.Forbidden:
-                            await message.channel.send('Can not send message to '+member.name)
-                    await message.add_reaction("✅")
-                elif len(message.mentions) != 0:
-                    mes = ['']*2
-                    spec = {}
-                    index = 0
-                    for string in message.clean_content.split('\n'):
-                        if '|' in string:
-                            temp = string.split('|')
-                            spec[temp[0].strip()] = temp[1].strip()
-                            index = 1
-                        else:
-                            mes[index] += string+'\n'
-                    for member in message.mentions:
-                        try:
-                            spec_message = spec[get_close_matches(bot.data['clan'][str(member.id)], spec.keys(), 1)[0]]+'\n'
-                        except:
-                            spec_message = ''                       
-                        try:
-                            embed = discord.Embed(title="Notice (Uncle Cat Discord)",description = (mes[0]+'\n'+spec_message+mes[1]), 
-                            color=0x00ff00)
-                            embed.set_footer(text="From {} ({})".format(message.author.name, currentTime), icon_url=bot.data['icon'])
-                            await member.send(embed=embed)
-                        except discord.Forbidden:
-                            await message.channel.send('Can not send message to {}'.format(member.name))
-                    await message.add_reaction("✅")  
+            if message.channel == bot.data['channels']['clan'] and \
+                (set(message.author.roles).intersection(bot.data['roles']['admins'])):
+                await bot.data['announcement'].announce(message)
+                await message.add_reaction("✅")  
                 return
 
             if message.channel == bot.data['channels']['ally']:
@@ -159,24 +112,13 @@ CLAN :```""", inline=False)
                 return                    
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------     
-            if message.channel.id == 295477991356497920:
-                embed = message.embeds
-                channel = bot.client.get_channel(698812557363773471)
+            if message.channel in bot.data['channels']['share']:
                 files = []
                 for att in message.attachments:
                     files.append(await att.to_file())
-                await channel.send(content=message.content, files=files)
-                return
+                for channel in bot.data['channels']['share'].get_share_room(message.channel):
+                    await channel.send(message.content, files=files)
 
-            if message.channel.id == 698812557363773471:
-                embed = message.embeds
-                channel = bot.client.get_channel(295477991356497920)
-                files = []
-                for att in message.attachments:
-                    files.append(await att.to_file())
-                await channel.send(content=message.content, files=files)
-                return        
-            
 #--------------------------------------------------------------------------------------------------------
             if message.channel != bot.data['channels']['botcommands']:
                 return
@@ -268,13 +210,15 @@ CLAN :```""", inline=False)
                         embed.set_footer(text=bot.data['footer'], icon_url=bot.data['icon']) 
                         await searchMessage.clear_reactions()
                         await searchMessage.edit(content=None, embed=embed, delete_after=300) 
-                    except:
+                    except Exception as err:
                         await searchMessage.delete()
                         await message.add_reaction("❌")
+                        print('Riven Stat Error', err)
                         return     
-                except:
+                except Exception as err:
                     await searchMessage.delete()
                     await message.add_reaction("❌")
+                    print('Riven Live Error', err)
                     return      
                 await message.add_reaction("✅")               
 

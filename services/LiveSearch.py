@@ -82,7 +82,7 @@ class Stats():
 
 class Container():
 
-    def __init__(self, message, stats, footer, icon, owner):
+    def __init__(self, message, stats, footer, icon, owner, weapon):
         with open('outstats.json', 'r') as statsFile:
             self.result = json.load(statsFile)
         self.message = message
@@ -93,6 +93,7 @@ class Container():
         self.icon = icon
         self.counter = 0
         self.owner = owner
+        self.weapon = weapon
       
     async def next(self):
         if not self.data or len(self.data) - 1 == self.currentPage:
@@ -125,7 +126,7 @@ class Container():
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
                         self.stats.getPriceRange().stop-1), color=0x00ff00)
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
@@ -144,7 +145,7 @@ class Container():
                     , inline=False)      
 
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], 0, "Infinity"), color=0x00ff00)    
@@ -188,7 +189,7 @@ class Container():
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
                         self.stats.getPriceRange().stop-1), color=0x00ff00)
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
@@ -207,7 +208,7 @@ class Container():
                     , inline=False)      
 
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], 0, "Infinity"), color=0x00ff00)    
@@ -257,7 +258,7 @@ class Container():
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
                         self.stats.getPriceRange().stop-1), color=0x00ff00)
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], self.stats.getPriceRange().start,
@@ -276,7 +277,7 @@ class Container():
                     , inline=False)      
 
                 except IndexError:
-                    embed = discord.Embed(title="Riven", 
+                    embed = discord.Embed(title="{} Riven".format(self.weapon).strip(), 
                         description = "Keep Searching{}\n```Positive 1 : {}\nPositive 2 : {}\nPositive 3 : {}\nNegative   : {}\nPrice Range : {} - {} Platinum```"
                         .format('.'*self.counter, self.result[self.stats.positive[0]], self.result[self.stats.positive[1]], 
                         self.result[self.stats.get_positive(2)], self.result[self.stats.negative[0]], 0, "Infinity"), color=0x00ff00)    
@@ -341,7 +342,7 @@ class LiveSearch():
         self.client = client
         self.owner = author
         self.target = Stats(target, weapons)      
-        self.container = Container(message, self.target, footer, icon, author)
+        self.container = Container(message, self.target, footer, icon, author, self.target.name)
         self.searching = True
         self.client.loop.create_task(self.searchTask(message))
 
