@@ -88,7 +88,8 @@ CLAN :```""", inline=False)
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------                    
 
             if message.channel == bot.data['channels']['clan'] and \
-                (set(message.author.roles).intersection(bot.data['roles']['admins'])):
+                (set(message.author.roles).intersection(bot.data['roles']['admins'])) and \
+                    message.mentions:
                 await bot.data['announcement'].announce(message)
                 await message.add_reaction("✅")  
                 return
