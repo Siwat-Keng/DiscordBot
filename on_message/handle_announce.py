@@ -3,3 +3,4 @@ async def handle_announce(message, data_collector, guilds):
         set(data_collector[message.guild.id]['roles']['admins']))) and \
             message.mentions:
             await guilds[message.guild.id].announcement.announce(message)
+            await message.add_reaction('✅')

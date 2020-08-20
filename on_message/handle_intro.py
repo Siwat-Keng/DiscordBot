@@ -12,4 +12,5 @@ async def handle_intro(message, client, data_collector, guilds):
                 data_collector[message.guild.id]['roles']['checkedIntro'])
             await message.author.add_roles(checkedIntro)
             await message.author.remove_roles(waitingIntro)
+        await message.add_reaction('✅')
         await message.author.send(embed=embed)

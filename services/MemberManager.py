@@ -23,7 +23,7 @@ class MemberManager:
                 key = key[0]
                 for f in FORMATS:
                     key = key.replace(*f)
-                profile[key[0]] = ' '.join(splitedList[1:]).strip()
+                profile[key] = ' '.join(splitedList[1:]).strip()
         if len(profile) == 4 and profile['Name'] and profile['Ign']:
             self.members[message.author.id] = profile
 
@@ -39,7 +39,7 @@ class MemberManager:
                 key = key[0]
                 for f in FORMATS:
                     key = key.replace(*f)
-                profile[key[0]] = ' '.join(splitedList[1:]).strip()
+                profile[key] = ' '.join(splitedList[1:]).strip()
         if len(profile) == 4 and profile['Name'] and profile['Ign']:
             return True
         return False
@@ -63,5 +63,3 @@ class MemberManager:
             .format(self.containers['prefix']), value='บอทจะ live search riven', inline=False)                     
         embed.set_footer(text=self.containers['footer'], icon_url=self.containers['icon'])
         return embed
-
-

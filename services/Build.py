@@ -2,6 +2,7 @@ from discord import Embed
 from difflib import get_close_matches
 from aiohttp import ClientSession
 from re import compile
+from asyncio import sleep
 
 class Build:
 
@@ -42,6 +43,7 @@ class Builds:
                                 newCollector.append(Build(result['title'], result['url'], result['stats']))
                                 self.available.add(self.regex.search(result['title']).group().title())
                             self.collector = newCollector
+            await sleep(1800)
     
     def getBuild(self, name, icon, footer):
         target = get_close_matches(name, self.available, 1)

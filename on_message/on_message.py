@@ -82,4 +82,5 @@ builds, world_stat, fissure_caches, party_caches, riven_caches, TABLE_NAME):
         elif message.content.startswith('{}riven'.format(data_collector[message.guild.id]['prefix'])):
             await handle_riven(client, message, data_collector, items, riven_caches)
 
-        await message.add_reaction('✅')
+        if message.content.startswith(data_collector[message.guild.id]['prefix']):
+            await message.add_reaction('✅')
