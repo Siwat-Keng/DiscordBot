@@ -1,7 +1,7 @@
 from json import dumps
-from discord import Forbidden
+from discord import Embed, Forbidden
 
-async def set_channel(conn, data_collector, message, TABLE_NAME):
+async def set_channel(client, conn, data_collector, guilds, message, TABLE_NAME):
     if message.author != message.guild.owner:
         raise Forbidden
 
@@ -20,15 +20,27 @@ async def set_channel(conn, data_collector, message, TABLE_NAME):
                 .format(data_collector[message.guild.id]['prefix'])):].strip().startswith('share'):
                 ch_id = message.content[len('{}set_ch'\
                 .format(data_collector[message.guild.id]['prefix'])):].strip()[len('share'):]
-                share = [message.channel.id, ch_id]
-                data_collector[message.guild.id]['channels']['share'].append(share)
+                target_ch = client.get_channel(int(ch_id))
+                target_guild = target_ch.guild
+                share = [message.channel.id, int(ch_id)]
+                data_collector[target_guild.id]['channels']['share'].append(share)
+                guilds[target_guild.id].share.refresh(client, 
+                data_collector[target_guild.id]['channels']['share'])
                 async with conn.cursor() as cursor:
                     sql = 'UPDATE {} SET data = %s WHERE serverID = %s'.format(TABLE_NAME)
-                    val = (dumps(data_collector[message.guild.id]), message.guild.id)
+                    val = (dumps(data_collector[target_guild.id]), target_guild.id)
                     await cursor.execute(sql, val)                   
                     await conn.commit()
                     await cursor.close()                
     else:
-        #TODO show set channel commands
-        pass
-    
+        embed = Embed(title='Channel Setting Commands', color=0x00ff00)
+        embed.add_field(name= '{}set_ch alert'.format(data_collector[message.guild.id]['prefix']), 
+        value='ทำให้ห้องที่ใช้คำสั่ง กลายเป็นห้องแสดงเวลาต่าง ๆ ในเกม(ข้อความก่อนหน้าจะถูกลบออก!!!)', inline=False)
+        embed.add_field(name= '{}set_ch botcommands'.format(data_collector[message.guild.id]['prefix']), 
+        value='ทำให้ห้องที่ใช้คำสั่ง ใช้ commands ทั่วไปของบอทได้', inline=False)
+        embed.add_field(name= '{}set_ch intro'.format(data_collector[message.guild.id]['prefix']), 
+        value='ทำให้ห้องที่ใช้คำสั่ง เป็นห้องสำหรับแนะนำตัว โดยบอทจะสร้าง role ใหม่ขึ้นมา 2 roles', inline=False)
+        embed.add_field(name= '{}set_ch share <id>'.format(data_collector[message.guild.id]['prefix']), 
+        value='ทำให้ห้องที่ใช้คำสั่ง รับข้อความจากห้องที่มี id ที่ระบุมา(บอทจะต้องอยู่ใน server ที่มีห้อง id นั้น ๆ)', inline=False)
+        embed.set_footer(text=data_collector[message.guild.id]['footer'], icon_url=data_collector[message.guild.id]['icon'])
+        await message.channel.send(embed=embed)

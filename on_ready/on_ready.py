@@ -1,5 +1,6 @@
 from json import loads
 from services.Guild import Guild
+from services.Share import Share
 
 def set_on_ready(client, conn, guilds, data_collector, world_stat, TABLE_NAME):
 

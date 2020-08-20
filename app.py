@@ -11,7 +11,6 @@ from on_guild.on_guild_remove import set_on_guild_remove
 from on_ready.on_ready import set_on_ready
 from on_reaction.on_reaction_add import set_on_reaction_add
 
-
 load_dotenv()
 
 DATABASE_NAME = getenv('DB_DATABASE')
@@ -34,10 +33,10 @@ async def init(loop):
     world_stat = WorldStat(client)
     items = Items(client)
     market_caches = {}
-            
-    set_on_guild_join(client, conn, data_collector, TABLE_NAME)
+
+    set_on_guild_join(client, conn, data_collector, guilds, world_stat, TABLE_NAME)
     set_on_guild_remove(client, conn, data_collector, TABLE_NAME)
-    set_on_message(client, conn, data_collector, items, market_caches, TABLE_NAME)
+    set_on_message(client, conn, data_collector, guilds, items, market_caches, TABLE_NAME)
     set_on_ready(client, conn, guilds, data_collector, world_stat, TABLE_NAME)
     set_on_reaction_add(client, conn, data_collector, market_caches, TABLE_NAME)
 
