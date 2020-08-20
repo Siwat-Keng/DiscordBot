@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from difflib import get_close_matches
+from asyncio import sleep
 import aiohttp, re
 
 class SentientAnomaly:
@@ -154,25 +155,29 @@ class Fissures:
     
 class WorldStat:
 
-    def __init__(self):
+    def __init__(self, client):
         self.sentientOutposts = SentientAnomaly()
         self.timeCycle = TimeCycle() 
         self.arbitration = Arbitration()
         self.news = News()    
         self.fissures = Fissures()
+        client.loop.create_task(self.update(client))
         
-    async def update(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://api.warframestat.us/pc') as request:
-                if request.status == 200:
-                    worldStat = await request.json()
-                    self.sentientOutposts.update(worldStat['sentientOutposts'])
-                    self.timeCycle.update(worldStat['cetusCycle'], 
-                    worldStat['earthCycle'], worldStat['vallisCycle'])
-                    self.arbitration.update(worldStat['arbitration'])
-                    self.fissures.update(worldStat['fissures'])
-        
-                    for index in range(len(worldStat['news'])-1,-1,-1):
-                        if 'en' in worldStat['news'][index]['translations']:
-                            self.news.update(worldStat['news'][index])
-                            break
+    async def update(self, client):
+        await client.wait_until_ready() 
+        while not client.is_closed():
+            async with aiohttp.ClientSession() as session:
+                async with session.get('https://api.warframestat.us/pc') as request:
+                    if request.status == 200:
+                        worldStat = await request.json()
+                        self.sentientOutposts.update(worldStat['sentientOutposts'])
+                        self.timeCycle.update(worldStat['cetusCycle'], 
+                        worldStat['earthCycle'], worldStat['vallisCycle'])
+                        self.arbitration.update(worldStat['arbitration'])
+                        self.fissures.update(worldStat['fissures'])
+            
+                        for index in range(len(worldStat['news'])-1,-1,-1):
+                            if 'en' in worldStat['news'][index]['translations']:
+                                self.news.update(worldStat['news'][index])
+                                break
+            await sleep(1)

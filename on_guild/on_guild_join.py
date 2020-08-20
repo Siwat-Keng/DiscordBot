@@ -4,7 +4,8 @@ def set_on_guild_join(client, conn, data_collector, TABLE_NAME):
 
     @client.event
     async def on_guild_join(guild):
-        data = {'prefix':'!', 'footer':None, 'icon':None, 'url': None, 
+        data = {'prefix':'!', 'footer':'created by MisterKeng', 
+        'icon':None, 'url': None, 
         'channels':
             {
                 'alert': None, 

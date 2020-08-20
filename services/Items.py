@@ -1,5 +1,6 @@
 from difflib import get_close_matches
-import aiohttp, discord, asyncio
+from asyncio import create_task, sleep, gather
+import aiohttp, discord
 
 async def fetch(url, session):
     async with session.get(url) as response:
@@ -53,36 +54,40 @@ class MarketItem():
             return "/w {} Hi! I want to buy: {} for {} platinum. (warframe.market)".format(self.user, self.name, self.price)
         return "/w {} Hi! I want to sell: {} for {} platinum. (warframe.market)".format(self.user, self.name, self.price)
         
-class ItemInfo():
+class Items():
 
-    def __init__(self):
+    def __init__(self, client):
         self.url = {}
         self.name = {}
         self.weapons = {}
         # self.warframe = {}
         self.drops = {}
+        client.loop.create_task(self.update(client))
 
-    async def update(self):
-        try:
-            tasks = []
-            async with aiohttp.ClientSession() as session:
-                tasks.append(asyncio.create_task(fetch('https://api.warframe.market/v1/items', session)))
-                tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/drops', session)))
-                tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/weapons', session)))
-                # tasks.append(asyncio.create_task(fetch('https://api.warframestat.us/warframes', session)))
-                tasks = await asyncio.gather(*tasks)
-                for item in tasks[0]['payload']['items']:
-                    self.name[item['url_name']] = item['item_name']
-                    self.url[item['item_name']] = item['url_name']
-                for item in { item['item'] for item in tasks[1] }:
-                    self.drops[item] = list(filter(lambda i: i['item'] == item, tasks[1]))            
-                for weapon in tasks[2]:
-                    self.weapons[weapon['name']] = weapon 
-                # for warframe in tasks[3]:
-                #     self.warframe[warframe['name']] = warframe
-            return True
-        except:
-            return False        
+    async def update(self, client):
+        await client.wait_until_ready() 
+        while not client.is_closed():        
+            try:
+                tasks = []
+                async with aiohttp.ClientSession() as session:
+                    tasks.append(create_task(fetch('https://api.warframe.market/v1/items', session)))
+                    tasks.append(create_task(fetch('https://api.warframestat.us/drops', session)))
+                    tasks.append(create_task(fetch('https://api.warframestat.us/weapons', session)))
+                    # tasks.append(create_task(fetch('https://api.warframestat.us/warframes', session)))
+                    tasks = await gather(*tasks)
+                    for item in tasks[0]['payload']['items']:
+                        self.name[item['url_name']] = item['item_name']
+                        self.url[item['item_name']] = item['url_name']
+                    for item in { item['item'] for item in tasks[1] }:
+                        self.drops[item] = list(filter(lambda i: i['item'] == item, tasks[1]))            
+                    for weapon in tasks[2]:
+                        self.weapons[weapon['name']] = weapon 
+                    # for warframe in tasks[3]:
+                    #     self.warframe[warframe['name']] = warframe
+            except:
+                pass   
+            finally:   
+                await sleep(300)
     
     def toUrl(self, name):
         try:
@@ -150,8 +155,6 @@ class ItemInfo():
 
                 else:
                     raise ConnectionError
-
-    
 
     async def getRivenPrice(self, weapon):    
         async with aiohttp.ClientSession() as session:

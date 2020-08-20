@@ -1,6 +1,10 @@
 from json import dumps
+from discord import Forbidden
 
 async def set_prefix(conn, data_collector, message, TABLE_NAME):
+    if message.author != message.guild.owner:
+        raise Forbidden
+
     new_prefix = message.content[len('{}set_prefix'.format(data_collector[message.guild.id]['prefix'])):].strip()
     data_collector[message.guild.id]['prefix'] = new_prefix
     async with conn.cursor() as cursor:
