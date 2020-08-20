@@ -6,6 +6,7 @@ from sys import exc_info
 from json import dumps
 from services.Announcement import Announcement
 from services.Share import Share
+from services.MemberManager import MemberManager
 
 class Guild:
 
@@ -13,8 +14,12 @@ class Guild:
         self.announcement = Announcement(data_collector[guild.id]['footer'],
         data_collector[guild.id]['icon'], data_collector[guild.id]['clan'])
         self.share = Share(client, data_collector[guild.id]['channels']['share'])
-        client.loop.create_task(self.member_cycle(client, data_collector[guild.id], guild, conn, TABLE_NAME))
-        client.loop.create_task(self.message_cycle(client, data_collector[guild.id], world_stat, conn, TABLE_NAME))
+        self.members = MemberManager(data_collector)
+        client.loop.create_task(self.member_cycle(client, data_collector[guild.id], 
+        guild, conn, TABLE_NAME))
+        client.loop.create_task(self.message_cycle(client, data_collector[guild.id], 
+        world_stat, conn, TABLE_NAME))
+        client.loop.create_task(self.load_member(client, data_collector[guild.id]))
 
     async def member_cycle(self, client, dictionary, guild, conn, TABLE_NAME):
         while not (dictionary['channels']['intro'] and dictionary['roles']['waitingIntro'] \
@@ -128,3 +133,9 @@ class Guild:
             except:
                 print('Unexpected error:', exc_info())
             await sleep(10)
+
+    async def load_member(self, client, dictionary):
+        if dictionary['channels']['intro']:
+            intro_channel = client.get_channel(dictionary['channels']['intro'])
+            async for message in intro_channel.history(limit=None):
+                self.members.collectData(message)

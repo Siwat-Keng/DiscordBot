@@ -1,6 +1,6 @@
 from services.Container import MarketContainer, MarketRankContainer
 
-async def market_price(data_collector, items, market_caches, message):
+async def handle_price(data_collector, items, market_caches, message):
     buyMessage = await message.channel.send('```Loading...```', delete_after=300)
     sellMessage = await message.channel.send('```Loading...```', delete_after=300)
     try:

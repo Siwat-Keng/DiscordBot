@@ -1,19 +1,19 @@
 from json import dumps
+from os import getenv
 from services.Guild import Guild
 
 def set_on_guild_join(client, conn, data_collector, guilds, world_stat, TABLE_NAME):
 
     @client.event
     async def on_guild_join(guild):
-        data = {'prefix':'!', 'footer':'created by MisterKeng', 
-        'icon':'https://img.icons8.com/cute-clipart/64/000000/discord-logo.png', 'url': None, 'invite': None,
+        data = {'prefix':getenv('DEFAULT_PREFIX'), 'footer':getenv('DEFAULT_FOOTER'), 
+        'icon':getenv('DEFAULT_ICON'), 'url': None, 'invite': None,
         'channels':
             {
                 'alert': None, 
                 'botcommands': None, 
                 'intro': None, 
-                'general': None, 
-                'ally': None, 
+                'general': None,
                 'clan': None,
                 'share': []
             },
@@ -30,7 +30,6 @@ def set_on_guild_join(client, conn, data_collector, guilds, world_stat, TABLE_NA
                 }, 
             'waitingIntro': None, 
             'checkedIntro': None,
-            'checkedAlly': None, 
             'VIP': None, 
             'admins': [],
             'notifications': []
