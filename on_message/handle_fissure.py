@@ -6,3 +6,4 @@ async def handle_fissure(message, data_collector, world_stat, fissure_caches):
     data_collector[message.guild.id]['icon'], 
     data_collector[message.guild.id]['footer'], world_stat.fissures)
     await fissure_caches[fissureMessage.id].setMessage()
+    await message.add_reaction('✅')

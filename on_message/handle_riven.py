@@ -10,6 +10,7 @@ async def handle_riven(client, message, data_collector, items, riven_caches):
         target, data_collector[message.guild.id]['footer'], 
         data_collector[message.guild.id]['icon'], 
         list(items.weapons.keys()), message.author)
+        await message.add_reaction('✅')
     except InvalidSearch:
         try:
             regex = compile('^[^+-]+')
@@ -19,6 +20,7 @@ async def handle_riven(client, message, data_collector, items, riven_caches):
             icon_url=data_collector[message.guild.id]['icon']) 
             await searchMessage.clear_reactions()
             await searchMessage.edit(content=None, embed=embed, delete_after=300) 
+            await message.add_reaction('✅')
         except:
             await searchMessage.delete()
             await message.add_reaction('❌')

@@ -13,3 +13,4 @@ async def set_prefix(conn, data_collector, message, TABLE_NAME):
         await cursor.execute(sql, val)                   
         await conn.commit()
         await cursor.close()
+    await message.add_reaction('✅')

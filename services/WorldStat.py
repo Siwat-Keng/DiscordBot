@@ -166,18 +166,21 @@ class WorldStat:
     async def update(self, client):
         await client.wait_until_ready() 
         while not client.is_closed():
-            async with aiohttp.ClientSession() as session:
-                async with session.get('https://api.warframestat.us/pc') as request:
-                    if request.status == 200:
-                        worldStat = await request.json()
-                        self.sentientOutposts.update(worldStat['sentientOutposts'])
-                        self.timeCycle.update(worldStat['cetusCycle'], 
-                        worldStat['earthCycle'], worldStat['vallisCycle'])
-                        self.arbitration.update(worldStat['arbitration'])
-                        self.fissures.update(worldStat['fissures'])
-            
-                        for index in range(len(worldStat['news'])-1,-1,-1):
-                            if 'en' in worldStat['news'][index]['translations']:
-                                self.news.update(worldStat['news'][index])
-                                break
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get('https://api.warframestat.us/pc') as request:
+                        if request.status == 200:
+                            worldStat = await request.json()
+                            self.sentientOutposts.update(worldStat['sentientOutposts'])
+                            self.timeCycle.update(worldStat['cetusCycle'], 
+                            worldStat['earthCycle'], worldStat['vallisCycle'])
+                            self.arbitration.update(worldStat['arbitration'])
+                            self.fissures.update(worldStat['fissures'])
+                
+                            for index in range(len(worldStat['news'])-1,-1,-1):
+                                if 'en' in worldStat['news'][index]['translations']:
+                                    self.news.update(worldStat['news'][index])
+                                    break
+            except:
+                pass
             await sleep(1)

@@ -23,4 +23,5 @@ async def handle_price(data_collector, items, market_caches, message):
         market_caches[sellMessage.id] = MarketContainer(market, 'buy', sellMessage, items, 
         data_collector[message.guild.id]['icon'], data_collector[message.guild.id]['footer'])             
     await market_caches[buyMessage.id].setMessage()
-    await market_caches[sellMessage.id].setMessage()    
+    await market_caches[sellMessage.id].setMessage()   
+    await message.add_reaction('✅') 

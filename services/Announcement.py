@@ -20,9 +20,15 @@ class Announcement:
                 '\n'.join(messages[spec_index[len(spec_index)-1]+1:])]
         else:
             template = [ '\n'.join(messages), '', '' ]
-
-        for member in message.mentions:
-            hasSpecMsg = get_close_matches(self.dictionary[member.id], temp_dict.keys(), 1)
+        if message.mention_everyone:
+            members = [member for member in message.channel.members if not member.bot]
+        else:
+            members = message.mentions
+        for member in members:
+            try:
+                hasSpecMsg = get_close_matches(self.dictionary[member.id], temp_dict.keys(), 1)
+            except KeyError:
+                hasSpecMsg = False
             if hasSpecMsg:
                 template[1] = temp_dict[hasSpecMsg[0]]
                 embed = discord.Embed(title=self.title,

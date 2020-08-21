@@ -10,3 +10,4 @@ async def handle_party(client, message, data_collector, party_caches):
     message.author, data_collector[message.guild.id]['footer'], 
     data_collector[message.guild.id]['icon'])      
     await party_caches[partyMessage.id].setMessage()
+    await message.add_reaction('✅')

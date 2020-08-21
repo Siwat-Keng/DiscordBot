@@ -15,6 +15,7 @@ class Guild:
         data_collector[guild.id]['icon'], data_collector[guild.id]['clan'])
         self.share = Share(client, data_collector[guild.id]['channels']['share'])
         self.members = MemberManager(data_collector[guild.id])
+        self.voice_state = {}
         client.loop.create_task(self.member_cycle(client, data_collector[guild.id], 
         guild, conn, TABLE_NAME))
         client.loop.create_task(self.message_cycle(client, data_collector[guild.id], 

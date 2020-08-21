@@ -12,6 +12,8 @@ from on_guild.on_guild_remove import set_on_guild_remove
 from on_ready.on_ready import set_on_ready
 from on_reaction.on_reaction_add import set_on_reaction_add
 from on_member.on_member_join import set_on_member_join
+from on_voice_state.on_voice_state_update import set_on_voice_state_update
+from on_message.on_message_delete import set_on_message_delete
 
 load_dotenv()
 
@@ -48,6 +50,9 @@ async def init(loop):
     set_on_reaction_add(client, conn, data_collector, market_caches, fissure_caches, 
     party_caches, riven_caches, guilds, TABLE_NAME)
     set_on_member_join(client, data_collector)
+    set_on_voice_state_update(client, data_collector, guilds)
+    set_on_message_delete(client, market_caches, fissure_caches, party_caches,
+    riven_caches)
 
     return client
 

@@ -4,3 +4,4 @@ async def handle_drop(message, data_collector, items):
     embed.set_footer(text=data_collector[message.guild.id]['footer'], 
     icon_url=data_collector[message.guild.id]['icon'])                    
     await message.channel.send(embed=embed)
+    await message.add_reaction('✅')

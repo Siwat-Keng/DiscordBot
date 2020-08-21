@@ -16,6 +16,7 @@ async def set_channel(client, conn, data_collector, guilds, message, TABLE_NAME)
             await cursor.execute(sql, val)                   
             await conn.commit()
             await cursor.close()
+        await message.add_reaction('✅')
     elif message.content[len('{}set_ch'\
                 .format(data_collector[message.guild.id]['prefix'])):].strip().startswith('share'):
                 ch_id = message.content[len('{}set_ch'\
@@ -31,7 +32,8 @@ async def set_channel(client, conn, data_collector, guilds, message, TABLE_NAME)
                     val = (dumps(data_collector[target_guild.id]), target_guild.id)
                     await cursor.execute(sql, val)                   
                     await conn.commit()
-                    await cursor.close()                
+                    await cursor.close()         
+                await message.add_reaction('✅')       
     else:
         embed = Embed(title='Channel Setting Commands', color=0x00ff00)
         embed.add_field(name= '{}set_ch alert'.format(data_collector[message.guild.id]['prefix']), 
@@ -44,3 +46,4 @@ async def set_channel(client, conn, data_collector, guilds, message, TABLE_NAME)
         value='ทำให้ห้องที่ใช้คำสั่ง รับข้อความจากห้องที่มี id ที่ระบุมา(บอทจะต้องอยู่ใน server ที่มีห้อง id นั้น ๆ)', inline=False)
         embed.set_footer(text=data_collector[message.guild.id]['footer'], icon_url=data_collector[message.guild.id]['icon'])
         await message.channel.send(embed=embed)
+        await message.add_reaction('✅')
