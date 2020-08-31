@@ -42,6 +42,8 @@ async def set_channel(client, conn, data_collector, guilds, message, TABLE_NAME)
         value='ทำให้ห้องที่ใช้คำสั่ง ใช้ commands ทั่วไปของบอทได้', inline=False)
         embed.add_field(name= '{}set_ch intro'.format(data_collector[message.guild.id]['prefix']), 
         value='ทำให้ห้องที่ใช้คำสั่ง เป็นห้องสำหรับแนะนำตัว โดยบอทจะสร้าง role ใหม่ขึ้นมา 2 roles', inline=False)
+        embed.add_field(name= '{}set_ch clan'.format(data_collector[message.guild.id]['prefix']), 
+        value='ทำให้ห้องที่ใช้คำสั่ง สามารถประกาศข้อความไปที่สมาชิกแคลนได้', inline=False)
         embed.add_field(name= '{}set_ch share <id>'.format(data_collector[message.guild.id]['prefix']), 
         value='ทำให้ห้องที่ใช้คำสั่ง รับข้อความจากห้องที่มี id ที่ระบุมา(บอทจะต้องอยู่ใน server ที่มีห้อง id นั้น ๆ)', inline=False)
         embed.set_footer(text=data_collector[message.guild.id]['footer'], icon_url=data_collector[message.guild.id]['icon'])

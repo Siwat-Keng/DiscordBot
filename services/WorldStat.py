@@ -69,14 +69,14 @@ class Arbitration:
             
     def __str__(self):
         if self.waitingState:
-            return "[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
-        return "[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}".format(self.currentMission['node'],
+            return "[ Arbitration ] \nLocation : Waiting Data (Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
+        return "[ Arbitration ] \nLocation : {} ({} left)\nEnemy : {}\nType : {}".format(self.currentMission['node'],
         self.remainingTime, self.currentMission['enemy'], self.currentMission['type'].replace("Dark Sector ",""))
 
     def __repr__(self):
         if self.waitingState:
-            return "[ Arbitration ] \nLocation : Waiting Data (Available : Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
-        return "[ Arbitration ] \nLocation : {} (Available : {})\nEnemy : {}\nType : {}".format(self.currentMission['node'],
+            return "[ Arbitration ] \nLocation : Waiting Data (Waiting Data)\nEnemy : Waiting Data\nType : Waiting Data"
+        return "[ Arbitration ] \nLocation : {} ({} left)\nEnemy : {}\nType : {}".format(self.currentMission['node'],
         self.remainingTime, self.currentMission['enemy'], self.currentMission['type'].replace("Dark Sector ",""))
 
 class TimeCycle:
@@ -88,29 +88,46 @@ class TimeCycle:
         self.earthTime = None
         self.vallisState = None
         self.vallisTime = None
+        self.cambionState = None
+        self.cambionTime = None
         self.regex = re.compile('\s*\d+[s]')
 
-    def update(self, cetus, earth, vallis):
+    def update(self, cetus, earth, vallis, cambion):
         self.cetusState = cetus['state'].capitalize()
         self.cetusTime = self.regex.sub('', cetus['timeLeft'])                  
         self.earthState = earth['state'].capitalize()
         self.earthTime = self.regex.sub('', earth['timeLeft'])
         self.vallisState = vallis['state'].capitalize()
         self.vallisTime = self.regex.sub('', vallis['timeLeft'])
+        self.cambionState = cambion['active'].capitalize()
+        self.cambionTime = (datetime.strptime(cambion['expiry'], '%Y-%m-%dT%X.000Z') - datetime.now()).seconds//60        
         if self.cetusTime == '':
             self.cetusTime = '<1m'
         if self.earthTime == '':
             self.earthTime = '<1m'   
         if self.vallisTime == '':
-            self.vallisTime = '<1m'          
+            self.vallisTime = '<1m'
+        if self.cambionTime <= 0:
+            self.cambionTime = '<1m'  
+        elif self.cambionTime > 60 and self.cambionTime % 60 != 0:
+            self.cambionTime = '{}h {}m'.format(self.cambionTime//60, self.cambionTime%60)
+        elif self.cambionTime >= 60:
+            self.cambionTime = '{}h'.format(self.cambionTime/60)
+        else:
+            self.cambionTime = '{}m'.format(self.cambionTime)     
+
+    def get_cambion(self):
+        return '{} ({} left)'.format(self.cambionState, self.cambionTime)
 
     def __str__(self):
-        return """[ Time Cycle ]\nEarth : {} (Available : {})\nCetus : {} (Available : {})\nFortuna : {} (Available : {})""".format(self.earthState,
-        self.earthTime, self.cetusState, self.cetusTime, self.vallisState, self.vallisTime)
+        return '[ Time Cycle ]\nEarth : {} ({} left)\nCetus : {} ({} left)\nFortuna : {} ({} left)\nCambion : {} ({} left)'\
+            .format(self.earthState, self.earthTime, self.cetusState, 
+            self.cetusTime, self.vallisState, self.vallisTime, self.cambionState, self.cambionTime)
 
     def __repr__(self):
-        return """[ Time Cycle ]\nEarth : {} (Available : {})\nCetus : {} (Available : {})\nFortuna : {} (Available : {})""".format(self.earthState,
-        self.earthTime, self.cetusState, self.cetusTime, self.vallisState, self.vallisTime)
+        return '[ Time Cycle ]\nEarth : {} ({} left)\nCetus : {} ({} left)\nFortuna : {} ({} left)\nCambion : {} ({} left)'\
+            .format(self.earthState, self.earthTime, self.cetusState, 
+            self.cetusTime, self.vallisState, self.vallisTime, self.cambionState, self.cambionTime)
 
 class News:
 
@@ -173,7 +190,8 @@ class WorldStat:
                             worldStat = await request.json()
                             self.sentientOutposts.update(worldStat['sentientOutposts'])
                             self.timeCycle.update(worldStat['cetusCycle'], 
-                            worldStat['earthCycle'], worldStat['vallisCycle'])
+                            worldStat['earthCycle'], worldStat['vallisCycle'],
+                            worldStat['cambionCycle'])
                             self.arbitration.update(worldStat['arbitration'])
                             self.fissures.update(worldStat['fissures'])
                 

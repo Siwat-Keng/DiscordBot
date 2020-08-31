@@ -15,6 +15,7 @@ from on_message.handle_drop import handle_drop
 from on_message.handle_fissure import handle_fissure
 from on_message.handle_party import handle_party
 from on_message.handle_riven import handle_riven
+from on_message.handle_help import handle_help, predict_command
 
 def set_on_message(client, conn, data_collector, guilds, items, market_caches, 
 builds, world_stat, fissure_caches, party_caches, riven_caches, TABLE_NAME):
@@ -82,6 +83,13 @@ builds, world_stat, fissure_caches, party_caches, riven_caches, TABLE_NAME):
 
             elif message.content.startswith('{}riven'.format(data_collector[message.guild.id]['prefix'])):
                 await handle_riven(client, message, data_collector, items, riven_caches)
+
+            elif message.content.startswith('{}help'.format(data_collector[message.guild.id]['prefix'])):
+                await handle_help(client, message, data_collector)
+
+            else:
+                await predict_command(message, data_collector)
+
         except Exception as err:
             print(err)
             await message.add_reaction('❌')

@@ -7,6 +7,7 @@ from json import dumps
 from services.Announcement import Announcement
 from services.Share import Share
 from services.MemberManager import MemberManager
+from services.Notification import Notification
 
 class Guild:
 
@@ -16,11 +17,13 @@ class Guild:
         self.share = Share(client, data_collector[guild.id]['channels']['share'])
         self.members = MemberManager(data_collector[guild.id])
         self.voice_state = {}
+        self.notifications = []
         client.loop.create_task(self.member_cycle(client, data_collector[guild.id], 
         guild, conn, TABLE_NAME))
         client.loop.create_task(self.message_cycle(client, data_collector[guild.id], 
         world_stat, conn, TABLE_NAME))
         client.loop.create_task(self.load_member(client, data_collector[guild.id]))
+        client.loop.create_task(self.load_notification(client, data_collector[guild.id]))
 
     async def member_cycle(self, client, dictionary, guild, conn, TABLE_NAME):
         while not (dictionary['channels']['intro'] and dictionary['roles']['waitingIntro'] \
@@ -44,7 +47,7 @@ class Guild:
             waiting_intro = get(guild.roles,
                     id=dictionary['roles']['waitingIntro'])
             checked_intro = get(guild.roles,
-                    id=dictionary['roles']['checkedIntro'])
+                    id=dictionary['roles']['checkedIntro'])                    
             for member in waiting_intro.members:
                 if checked_intro not in member.roles and \
                     (datetime.now() - member.joined_at).seconds//60 >= 31:
@@ -55,7 +58,7 @@ class Guild:
                         embed = Embed(title='สามารถคลิกที่นี่ เพื่อกลับเข้าสู่ Server อีกครั้ง',
                         description = 'คุณจะถูกนำออกจาก Server เนื่องจากไม่แนะนำตัว ภายใน 30 นาที', 
                         url = dictionary['invite'], color=0x00ff00)
-                        embed.set_footer(text=dictionary['footer'], icon_url=dictionary['icon'])   
+                        embed.set_footer(text=dictionary['footer'], icon_url=dictionary['icon'])
                         try:
                             await member.send(embed=embed)
                         except:
@@ -140,3 +143,24 @@ class Guild:
             intro_channel = client.get_channel(dictionary['channels']['intro'])
             async for message in intro_channel.history(limit=None):
                 self.members.collectData(message)
+
+    async def load_notification(self, client, dictionary):
+        while not (dictionary['roles']['notifications'] and \
+            dictionary['channels']['general']):
+            await sleep(10)
+        channel = client.get_channel(dictionary['channels']['general'])            
+        for noti in dictionary['roles']['notifications']:
+            _noti = {key:value for key, value in noti.items()}
+            _noti['role'] = channel.guild.get_role(noti['role'])
+            self.notifications.append(Notification(**_noti))
+        while dictionary['roles']['notifications'] and \
+            dictionary['channels']['general']:
+            channel = client.get_channel(dictionary['channels']['general'])
+            current = (datetime.now() + timedelta(hours=7)).replace(microsecond=0)
+            try:
+                for noti in self.notifications:
+                    if noti.notify(current):
+                        await channel.send(noti.get_message())
+            except Exception as err:
+                print('Notification Error :', err)
+            await sleep(1)

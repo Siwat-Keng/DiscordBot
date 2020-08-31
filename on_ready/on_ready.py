@@ -10,8 +10,10 @@ def set_on_ready(client, conn, guilds, data_collector, world_stat, TABLE_NAME):
             sql = 'SELECT * FROM discord'
             await cursor.execute(sql)
             fetched = await cursor.fetchall()
+            await cursor.close()
             for data in fetched:
                 data_collector[int(data[0])] = loads(data[1])
-                guilds[int(data[0])] = Guild(client, client.get_guild(int(data[0])), 
-                data_collector, world_stat, conn, TABLE_NAME)
+                if int(data[0]) not in guilds:
+                    guilds[int(data[0])] = Guild(client, client.get_guild(int(data[0])), 
+                    data_collector, world_stat, conn, TABLE_NAME)
             print('ready!')
